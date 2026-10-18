@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FinanzGagnon - Control de Gastos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="icon" type="image/jpeg" href="/img/logo.jpg">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <!-- 1. PANTALLA DE ACCESO / LOGIN -->
+    <div id="login-screen" class="view active-view">
+        <div class="login-card">
+            <div class="login-header">
+                <img src="/img/logo.jpg" alt="FinanzGagnon" class="logo-icon">
+                <h2>FinanzGagnon</h2>
+                <p>Sistema de Control de Gasto</p>
+            </div>
+            <form id="form-login">
+                <div class="form-group">
+                    <label for="login-user"><i class="fas fa-user"></i> Usuario</label>
+                    <input type="text" id="login-user" placeholder="Ej: juan.perez" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="login-pass"><i class="fas fa-lock"></i> Contraseña</label>
+                    <input type="password" id="login-pass" placeholder="Tu contraseña" required autocomplete="current-password">
+                </div>
+                <div id="login-error" class="alert-error" style="display:none;"></div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar sesión
+                </button>
+                <p class="auth-switch">¿No tienes cuenta? <a href="#" onclick="showAuthForm('registro'); return false;">Regístrate aquí</a></p>
+            </form>
+
+            <form id="form-registro" style="display:none;">
+                <div class="form-group">
+                    <label for="reg-nombre"><i class="fas fa-id-card"></i> Nombre completo</label>
+                    <input type="text" id="reg-nombre" placeholder="Ej: Juan Pérez Rodríguez" required minlength="3" maxlength="120" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="reg-curso"><i class="fas fa-school"></i> Curso</label>
+                    <input type="text" id="reg-curso" placeholder="Ej: 5to de Secundaria" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="reg-user"><i class="fas fa-user"></i> Usuario</label>
+                    <input type="text" id="reg-user" placeholder="Ej: juan.perez" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9._\-]+" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="reg-pass"><i class="fas fa-lock"></i> Contraseña</label>
+                    <input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label for="reg-pass2"><i class="fas fa-lock"></i> Repite la contraseña</label>
+                    <input type="password" id="reg-pass2" placeholder="Repite tu contraseña" required minlength="6" autocomplete="new-password">
+                </div>
+                <div id="registro-error" class="alert-error" style="display:none;"></div>
+                <button type="submit" class="btn btn-secondary btn-block">
+                    <i class="fas fa-user-plus"></i> Crear cuenta
+                </button>
+                <p class="auth-switch">¿Ya tienes cuenta? <a href="#" onclick="showAuthForm('login'); return false;">Inicia sesión</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. APLICACIÓN PRINCIPAL -->
+    <div id="app-screen" class="view" style="display:none;">
+        
+        <div class="top-sticky">
+            <!-- Header Superior Móvil -->
+            <header class="top-nav">
+                <div class="brand">
+                    <img src="/img/logo.jpg" alt="FinanzGagnon" class="brand-logo">
+                    <span class="brand-title">FinanzGagnon</span>
+                </div>
+                <div class="user-pill">
+                    <span id="user-display">Estudiante</span>
+                    <button id="btn-logout" title="Cerrar sesión"><i class="fas fa-power-off"></i></button>
+                </div>
+            </header>
+        </div>
+
+        <main class="content-container">
+
+            <!-- TAB 1: INICIO / DASHBOARD -->
+            <section id="tab-inicio" class="tab-content active-tab">
+                <div class="welcome-box">
+                    <h3 id="welcome-msg">¡Hola de nuevo!</h3>
+                    <p id="course-msg">Resumen de tu balance escolar</p>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="card card-income">
+                        <div class="icon-circle"><i class="fas fa-arrow-down"></i></div>
+                        <div>
+                            <span>Total Ingresos</span>
+                            <h4 id="dash-ingresos">Bs. 0.00</h4>
+                        </div>
+                    </div>
+                    <div class="card card-expense">
+                        <div class="icon-circle"><i class="fas fa-arrow-up"></i></div>
+                        <div>
+                            <span>Total Gastos</span>
+                            <h4 id="dash-gastos">Bs. 0.00</h4>
+                        </div>
+                    </div>
+                    <div class="card card-balance">
+                        <div class="icon-circle"><i class="fas fa-coins"></i></div>
+                        <div>
+                            <span>Saldo Disponible</span>
+                            <h4 id="dash-saldo">Bs. 0.00</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="btn btn-secondary" onclick="openModal('modal-ingreso')">
+                        <i class="fas fa-plus-circle"></i> Nuevo Ingreso
+                    </button>
+                    <button class="btn btn-danger" onclick="openModal('modal-gasto')">
+                        <i class="fas fa-minus-circle"></i> Nuevo Gasto
+                    </button>
+                </div>
+            </section>
+
+            <!-- TAB 2: INGRESOS -->
+            <section id="tab-ingresos" class="tab-content">
+                <div class="section-header">
+                    <h3><i class="fas fa-piggy-bank"></i> Mis Ingresos</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('modal-ingreso')">
+                        <i class="fas fa-plus"></i> Registrar
+                    </button>
+                </div>
+                <div class="list-container" id="list-ingresos">
+                    <!-- Dinámico con JS -->
+                </div>
+            </section>
+
+            <!-- TAB 3: GASTOS -->
+            <section id="tab-gastos" class="tab-content">
+                <div class="section-header">
+                    <h3><i class="fas fa-shopping-cart"></i> Mis Gastos</h3>
+                    <button class="btn btn-danger btn-sm" onclick="openModal('modal-gasto')">
+                        <i class="fas fa-plus"></i> Registrar
+                    </button>
+                </div>
+                <div class="list-container" id="list-gastos">
+                    <!-- Dinámico con JS -->
+                </div>
+            </section>
+
+            <!-- TAB 4: REPORTES -->
+            <section id="tab-reportes" class="tab-content">
+                <div class="section-header">
+                    <h3><i class="fas fa-chart-pie"></i> Reportes y Análisis</h3>
+                </div>
+
+                <!-- Filtro por Día, Semana, Mes o Todo -->
+                <div class="report-filter-card">
+                    <div class="filter-pills">
+                        <button type="button" class="filter-pill" data-period="dia">
+                            <i class="fas fa-calendar-day"></i> Día
+                        </button>
+                        <button type="button" class="filter-pill" data-period="semana">
+                            <i class="fas fa-calendar-week"></i> Semanal
+                        </button>
+                        <button type="button" class="filter-pill active" data-period="mes">
+                            <i class="fas fa-calendar-alt"></i> Mes
+                        </button>
+                        <button type="button" class="filter-pill" data-period="todo">
+                            <i class="fas fa-history"></i> Todo
+                        </button>
+                    </div>
+
+                    <div class="filter-inputs-row">
+                        <!-- Control específico para Día -->
+                        <div id="filter-control-dia" class="filter-control" style="display:none;">
+                            <label for="report-filter-fecha"><i class="fas fa-calendar"></i> Seleccionar día:</label>
+                            <input type="date" id="report-filter-fecha">
+                        </div>
+
+                        <!-- Control específico para Semana -->
+                        <div id="filter-control-semana" class="filter-control" style="display:none;">
+                            <label><i class="fas fa-calendar-week"></i> Semana actual:</label>
+                            <div class="semana-selector-wrap">
+                                <span id="semana-rango-texto" class="semana-rango-badge"></span>
+                                <input type="date" id="report-filter-semana-fecha" title="Cambiar fecha para ver otra semana">
+                            </div>
+                        </div>
+
+                        <!-- Control específico para Mes -->
+                        <div id="filter-control-mes" class="filter-control">
+                            <label for="report-filter-mes"><i class="fas fa-calendar-alt"></i> Seleccionar mes:</label>
+                            <input type="month" id="report-filter-mes">
+                        </div>
+
+                        <!-- Información para Todo -->
+                        <div id="filter-control-todo" class="filter-control" style="display:none;">
+                            <span class="todo-info-badge"><i class="fas fa-info-circle"></i> Mostrando historial acumulado completo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen de montos según el período seleccionado -->
+                <div class="report-summary-box">
+                    <div class="report-metric">
+                        <span>Ingresos:</span> <strong id="rep-ingresos" class="text-green">Bs. 0.00</strong>
+                    </div>
+                    <div class="report-metric">
+                        <span>Gastos:</span> <strong id="rep-gastos" class="text-red">Bs. 0.00</strong>
+                    </div>
+                    <div class="report-metric">
+                        <span>Saldo:</span> <strong id="rep-saldo" class="text-blue">Bs. 0.00</strong>
+                    </div>
+                </div>
+
+                <!-- GRÁFICOS DE TORTA DE NOTIFICACIONES (PRESUPUESTO Y AHORRO) -->
+                <div class="charts-notification-grid">
+                    <!-- Torta 1: Presupuesto y Gastos -->
+                    <div class="chart-wrapper">
+                        <h4><i class="fas fa-wallet"></i> Estado del Presupuesto</h4>
+                        <div class="canvas-box">
+                            <canvas id="budgetChart"></canvas>
+                        </div>
+                        <div id="report-status-presupuesto" class="status-strip status-neutral report-status-card" role="status">
+                            <strong class="status-title"></strong>
+                            <span class="status-msg"></span>
+                        </div>
+                    </div>
+
+                    <!-- Torta 2: Meta de Ahorro -->
+                    <div class="chart-wrapper">
+                        <h4><i class="fas fa-piggy-bank"></i> Meta de Ahorro (30%)</h4>
+                        <div class="canvas-box">
+                            <canvas id="savingsChart"></canvas>
+                        </div>
+                        <div id="report-status-ahorro" class="status-strip status-neutral report-status-card" role="status">
+                            <strong class="status-title"></strong>
+                            <span class="status-msg"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Torta 3: Gastos por Categoría -->
+                <div class="chart-wrapper">
+                    <h4><i class="fas fa-chart-pie"></i> Gastos por Categoría</h4>
+                    <div class="canvas-box">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Detalle en tabla -->
+                <div class="table-container">
+                    <h4>Detalle de Gastos por Categoría</h4>
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th>Total (Bs.)</th>
+                                <th>% del Gasto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body">
+                            <!-- Dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Barra de Navegación Inferior Móvil -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-tab="tab-inicio">
+                <i class="fas fa-home"></i>
+                <span>Inicio</span>
+            </button>
+            <button class="nav-item" data-tab="tab-ingresos">
+                <i class="fas fa-plus-circle"></i>
+                <span>Ingresos</span>
+            </button>
+            <button class="nav-item" data-tab="tab-gastos">
+                <i class="fas fa-minus-circle"></i>
+                <span>Gastos</span>
+            </button>
+            <button class="nav-item" data-tab="tab-reportes">
+                <i class="fas fa-chart-bar"></i>
+                <span>Reportes</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- 3. PANEL DEL ADMINISTRADOR -->
+    <div id="admin-screen" class="view" style="display:none;">
+        <div class="top-sticky">
+            <header class="top-nav">
+                <div class="brand">
+                    <img src="/img/logo.jpg" alt="FinanzGagnon" class="brand-logo">
+                    <span class="brand-title">FinanzGagnon <small style="font-size:12px; font-weight:normal; opacity:0.8;">Admin</small></span>
+                </div>
+                <div class="user-pill">
+                    <span id="admin-display">Admin</span>
+                    <button id="btn-admin-logout" title="Cerrar sesión"><i class="fas fa-power-off"></i></button>
+                </div>
+            </header>
+            <div id="admin-status-strip" class="status-strip status-neutral" role="status">
+                <strong class="status-title">Estado de seguridad:</strong>
+                <span class="status-msg">Cargando...</span>
+            </div>
+        </div>
+
+        <main class="content-container">
+
+            <!-- TAB ADMIN 1: CUENTAS DE ESTUDIANTES -->
+            <section id="tab-admin-estudiantes" class="tab-content active-tab">
+                <div class="section-header">
+                    <h3><i class="fas fa-users"></i> Estudiantes</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openEstudianteModal()">
+                        <i class="fas fa-user-plus"></i> Registrar
+                    </button>
+                </div>
+                <div class="form-group">
+                    <input type="search" id="admin-buscar" placeholder="Buscar por nombre, usuario o curso">
+                </div>
+                <div class="list-container" id="list-admin-estudiantes"></div>
+            </section>
+
+            <!-- TAB ADMIN 2: MONITOREO DE SEGURIDAD -->
+            <section id="tab-admin-seguridad" class="tab-content">
+                <div class="section-header">
+                    <h3><i class="fas fa-shield-alt"></i> Seguridad</h3>
+                    <button class="btn btn-primary btn-sm" onclick="loadSeguridad()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                </div>
+                <div class="metric-grid" id="admin-metricas"></div>
+                <div class="table-container">
+                    <h4>Controles de seguridad</h4>
+                    <div id="admin-controles"></div>
+                </div>
+                <div class="table-container" id="admin-bloqueadas-box" style="display:none;">
+                    <h4>Cuentas bloqueadas</h4>
+                    <div id="admin-bloqueadas"></div>
+                </div>
+                <div class="table-container">
+                    <h4>Bitácora de eventos (últimos 50)</h4>
+                    <div class="table-scroll">
+                        <table class="report-table">
+                            <thead>
+                                <tr><th>Fecha</th><th>Evento</th><th>Usuario</th><th>IP</th><th>Detalle</th></tr>
+                            </thead>
+                            <tbody id="admin-eventos"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB ADMIN 3: BACKUP Y CUENTA -->
+            <section id="tab-admin-backup" class="tab-content">
+                <div class="section-header">
+                    <h3><i class="fas fa-database"></i> Copias de seguridad</h3>
+                </div>
+                <div class="table-container">
+                    <p class="muted-text">Descarga un archivo <strong>.sql</strong> con la estructura y todos los datos del sistema. Para restaurarlo, impórtalo en MySQL.</p>
+                    <button class="btn btn-primary btn-block" id="btn-backup">
+                        <i class="fas fa-download"></i> Generar y descargar backup
+                    </button>
+                    <p class="muted-text" id="backup-info" style="margin-top:10px;"></p>
+                </div>
+
+                <div class="table-container">
+                    <h4><i class="fas fa-key"></i> Cambiar mi contraseña</h4>
+                    <form id="form-admin-password" style="margin-top:10px;">
+                        <div class="form-group">
+                            <label>Contraseña actual</label>
+                            <input type="password" id="admin-pass-actual" required autocomplete="current-password">
+                        </div>
+                        <div class="form-group">
+                            <label>Nueva contraseña</label>
+                            <input type="password" id="admin-pass-nueva" required minlength="8" autocomplete="new-password">
+                        </div>
+                        <div class="form-group">
+                            <label>Repite la nueva contraseña</label>
+                            <input type="password" id="admin-pass-nueva2" required minlength="8" autocomplete="new-password">
+                        </div>
+                        <div id="admin-pass-msg" class="alert-error" style="display:none;"></div>
+                        <button type="submit" class="btn btn-secondary btn-block">Actualizar contraseña</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-tab="tab-admin-estudiantes">
+                <i class="fas fa-users"></i>
+                <span>Estudiantes</span>
+            </button>
+            <button class="nav-item" data-tab="tab-admin-seguridad">
+                <i class="fas fa-shield-alt"></i>
+                <span>Seguridad</span>
+            </button>
+            <button class="nav-item" data-tab="tab-admin-backup">
+                <i class="fas fa-database"></i>
+                <span>Backup</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- MODAL CREAR / EDITAR ESTUDIANTE (ADMIN) -->
+    <div id="modal-estudiante" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 id="modal-estudiante-titulo"><i class="fas fa-user-graduate"></i> Registrar estudiante</h4>
+                <button class="close-btn" onclick="closeModal('modal-estudiante')">&times;</button>
+            </div>
+            <form id="form-estudiante">
+                <input type="hidden" id="est-id">
+                <div class="form-group">
+                    <label>Nombre completo</label>
+                    <input type="text" id="est-nombre" required minlength="3" maxlength="120">
+                </div>
+                <div class="form-group">
+                    <label>Curso</label>
+                    <input type="text" id="est-curso" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <input type="text" id="est-usuario" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9._\-]+">
+                </div>
+                <div class="form-group">
+                    <label id="est-pass-label">Contraseña</label>
+                    <input type="password" id="est-password" minlength="6" autocomplete="new-password">
+                </div>
+                <div id="est-error" class="alert-error" style="display:none;"></div>
+                <button type="submit" class="btn btn-primary btn-block">Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL NUEVO INGRESO -->
+    <div id="modal-ingreso" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4><i class="fas fa-hand-holding-usd"></i> Registrar Ingreso</h4>
+                <button class="close-btn" onclick="closeModal('modal-ingreso')">&times;</button>
+            </div>
+            <form id="form-ingreso">
+                <div class="form-group">
+                    <label>Fuente del dinero</label>
+                    <input type="text" id="ingreso-fuente" placeholder="Ej: Mesada, Papás, Regalo" required>
+                </div>
+                <div class="form-group">
+                    <label>Monto (Bs.)</label>
+                    <input type="number" step="0.50" id="ingreso-monto" placeholder="Ej: 50.00" required>
+                </div>
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" id="ingreso-fecha" required>
+                </div>
+                <div class="form-group">
+                    <label>Descripción / Detalle</label>
+                    <input type="text" id="ingreso-desc" placeholder="Detalle opcional">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Guardar Ingreso</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL NUEVO GASTO -->
+    <div id="modal-gasto" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4><i class="fas fa-receipt"></i> Registrar Gasto</h4>
+                <button class="close-btn" onclick="closeModal('modal-gasto')">&times;</button>
+            </div>
+            <form id="form-gasto">
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select id="gasto-categoria" required>
+                        <!-- Cargado por JS -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Monto gastado (Bs.)</label>
+                    <input type="number" step="0.50" id="gasto-monto" placeholder="Ej: 15.00" required>
+                </div>
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" id="gasto-fecha" required>
+                </div>
+                <div class="form-group"> 
+                    <label>Descripción del gasto</label>
+                    <input type="text" id="gasto-desc" placeholder="Ej: Empanada y refresco">
+                </div>
+                <button type="submit" class="btn btn-danger btn-block">Guardar Gasto</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
