@@ -1,17 +1,26 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!-- Configuración básica de la página web -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FinanzGagnon - Control de Gastos</title>
+
+    <!-- Iconos vectoriales de FontAwesome (para botones y tarjetas) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Hoja de estilos visuales principal -->
     <link rel="stylesheet" href="/css/styles.css">
+    <!-- Icono de pestaña del navegador (Favicon con el logo oficial) -->
     <link rel="icon" type="image/jpeg" href="/img/logo.jpg">
+    <!-- Librería Chart.js para dibujar los gráficos circulares interactivos (Tortas y Donas) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-    <!-- 1. PANTALLA DE ACCESO / LOGIN -->
+    <!-- ======================================================================= -->
+    <!-- 1. PANTALLA DE ACCESO (LOGIN Y REGISTRO DE ESTUDIANTES)                 -->
+    <!-- Esta pantalla se muestra cuando el usuario aún no ha iniciado sesión.  -->
+    <!-- ======================================================================= -->
     <div id="login-screen" class="view active-view">
         <div class="login-card">
             <div class="login-header">
