@@ -70,7 +70,7 @@ async function initSecuritySchema() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // Tabla de Metas de Ahorro personales del estudiante (para comprarse algo personal y llevar historial)
+    // Tabla de Metas de Ahorro personales del estudiante (compatible con MySQL y MariaDB/XAMPP)
     await db.query(`
         CREATE TABLE IF NOT EXISTS metas_ahorro (
             id INT NOT NULL AUTO_INCREMENT,
@@ -85,12 +85,11 @@ async function initSecuritySchema() {
             fecha_completada DATETIME DEFAULT NULL,
             creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            KEY fk_metas_estudiante (estudiante_id),
-            CONSTRAINT fk_metas_estudiante FOREIGN KEY (estudiante_id) REFERENCES estudiantes (id) ON DELETE CASCADE
+            KEY fk_metas_estudiante (estudiante_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // Tabla de Calendario Escolar: gastos exclusivos que el estudiante tiene en el colegio (fotocopias, materiales, etc.)
+    // Tabla de Calendario Escolar: gastos exclusivos que el estudiante tiene en el colegio (compatible con MySQL y MariaDB/XAMPP)
     await db.query(`
         CREATE TABLE IF NOT EXISTS gastos_escolares (
             id INT NOT NULL AUTO_INCREMENT,
@@ -102,10 +101,36 @@ async function initSecuritySchema() {
             creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             KEY fk_gastos_escolares_estudiante (estudiante_id),
-            KEY idx_gastos_escolares_fecha (fecha),
-            CONSTRAINT fk_gastos_escolares_estudiante FOREIGN KEY (estudiante_id) REFERENCES estudiantes (id) ON DELETE CASCADE
+            KEY idx_gastos_escolares_fecha (fecha)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    // Si las tablas nuevas están vacías, insertamos datos de ejemplo automáticamente para los estudiantes existentes
+    const [[conteoMetas]] = await db.query('SELECT COUNT(*) AS total FROM metas_ahorro');
+    const [estExistentes] = await db.query('SELECT id FROM estudiantes ORDER BY id ASC LIMIT 2');
+    if (conteoMetas.total === 0 && estExistentes.length > 0) {
+        const id1 = estExistentes[0].id;
+        await db.query(
+            `INSERT INTO metas_ahorro (estudiante_id, titulo, categoria, monto_objetivo, monto_ahorrado, estado, visible_panel, fecha_creacion, fecha_completada)
+             VALUES (?, 'Audífonos Bluetooth', 'Tecnología', 180.00, 120.00, 'en_progreso', 1, '2026-10-05', NULL),
+                    (?, 'Pelota de Fútbol Oficial', 'Deporte', 100.00, 100.00, 'completada', 1, '2026-09-15', '2026-10-10 15:30:00')`,
+            [id1, id1]
+        );
+    }
+
+    const [[conteoEscolares]] = await db.query('SELECT COUNT(*) AS total FROM gastos_escolares');
+    if (conteoEscolares.total === 0 && estExistentes.length > 0) {
+        const id1 = estExistentes[0].id;
+        await db.query(
+            `INSERT INTO gastos_escolares (estudiante_id, tipo, monto, fecha, descripcion)
+             VALUES (?, 'Fotocopias e Impresiones', 5.00, CURDATE(), 'Fotocopias de práctica de Matemáticas'),
+                    (?, 'Materiales para clase', 25.00, CURDATE(), 'Cartulinas, marcadores y pegamento para exposición'),
+                    (?, 'Recreo / Merienda escolar', 12.00, CURDATE(), 'Sándwich y jugo en el quiosco del colegio')`,
+            [id1, id1, id1]
+        );
+    }
+
+    console.log('✅ Base de datos verificada y actualizada automáticamente (metas_ahorro y gastos_escolares listas).');
 
     // Verificamos si ya existe al menos un administrador registrado
     const [admins] = await db.query('SELECT COUNT(*) AS total FROM administradores');

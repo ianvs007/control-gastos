@@ -97,13 +97,12 @@ CREATE TABLE `metas_ahorro` (
   `fecha_completada` datetime DEFAULT NULL,
   `creado_en` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `fk_metas_estudiante` (`estudiante_id`),
-  CONSTRAINT `fk_metas_estudiante` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`) ON DELETE CASCADE
+  KEY `fk_metas_estudiante` (`estudiante_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ;
 
 INSERT INTO `metas_ahorro` (`id`, `estudiante_id`, `titulo`, `categoria`, `monto_objetivo`, `monto_ahorrado`, `estado`, `visible_panel`, `fecha_creacion`, `fecha_completada`) VALUES
 (1, 1, 'Audífonos Bluetooth', 'Tecnología', '180.00', '120.00', 'en_progreso', 1, '2026-10-05', NULL),
-(2, 1, ' Pelota de Fútbol Oficial', 'Deporte', '100.00', '100.00', 'completada', 1, '2026-09-15', '2026-10-10 15:30:00'),
+(2, 1, 'Pelota de Fútbol Oficial', 'Deporte', '100.00', '100.00', 'completada', 1, '2026-09-15', '2026-10-10 15:30:00'),
 (3, 2, 'Calculadora Científica', 'Estudios', '150.00', '90.00', 'en_progreso', 1, '2026-10-02', NULL);
 
 DROP TABLE IF EXISTS `gastos_escolares`;
@@ -117,8 +116,7 @@ CREATE TABLE `gastos_escolares` (
   `creado_en` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_gastos_escolares_estudiante` (`estudiante_id`),
-  KEY `idx_gastos_escolares_fecha` (`fecha`),
-  CONSTRAINT `fk_gastos_escolares_estudiante` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`) ON DELETE CASCADE
+  KEY `idx_gastos_escolares_fecha` (`fecha`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 ;
 
 INSERT INTO `gastos_escolares` (`id`, `estudiante_id`, `tipo`, `monto`, `fecha`, `descripcion`) VALUES

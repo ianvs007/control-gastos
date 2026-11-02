@@ -147,7 +147,9 @@ router.delete('/estudiantes/:id', validarId, async (req, res) => {
             return res.status(404).json({ error: 'Estudiante no encontrado' });
         }
 
-        // Borramos el estudiante de la base de datos
+        // Borramos el estudiante y sus registros asociados de la base de datos
+        await db.query('DELETE FROM metas_ahorro WHERE estudiante_id = ?', [id]);
+        await db.query('DELETE FROM gastos_escolares WHERE estudiante_id = ?', [id]);
         await db.query('DELETE FROM estudiantes WHERE id = ?', [id]);
 
         // Registramos la eliminación en la bitácora
