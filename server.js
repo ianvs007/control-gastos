@@ -262,34 +262,87 @@ function construirFiltroFecha(query, campoFecha = 'fecha') {
     return { sql, params };
 }
 
-// RUTA GET /api/resumen -> Calcula Total Ingresos, Total Gastos y Saldo Disponible
+// Función auxiliar que calcula el saldo global disponible actual del estudiante
+async function obtenerSaldoGlobal(estudianteId) {
+    const [[ing]] = await db.query(
+        'SELECT COALESCE(SUM(monto), 0) AS total FROM ingresos WHERE estudiante_id = ?',
+        [estudianteId]
+    );
+    const [[gas]] = await db.query(
+        'SELECT COALESCE(SUM(monto), 0) AS total FROM gastos WHERE estudiante_id = ?',
+        [estudianteId]
+    );
+    const [[esc]] = await db.query(
+        'SELECT COALESCE(SUM(monto), 0) AS total FROM gastos_escolares WHERE estudiante_id = ?',
+        [estudianteId]
+    );
+    const [[met]] = await db.query(
+        'SELECT COALESCE(SUM(monto_ahorrado), 0) AS total FROM metas_ahorro WHERE estudiante_id = ? AND visible_panel = 1',
+        [estudianteId]
+    );
+    const totalIngresos = parseFloat(ing.total);
+    const totalGastosGenerales = parseFloat(gas.total);
+    const totalGastosEscolares = parseFloat(esc.total);
+    const totalGastos = totalGastosGenerales + totalGastosEscolares;
+    const totalAhorradoMetas = parseFloat(met.total);
+    const saldoDisponible = totalIngresos - totalGastos;
+    return {
+        totalIngresos,
+        totalGastosGenerales,
+        totalGastosEscolares,
+        totalGastos,
+        totalAhorradoMetas,
+        saldoDisponible
+    };
+}
+
+// RUTA GET /api/resumen -> Calcula Total Ingresos, Total Gastos (generales + escolares), Ahorro en Metas y Saldo Disponible
 // Puede recibir parámetros opcionales (?periodo=dia&fecha=... o ?periodo=semana... o ?periodo=mes...)
 app.get('/api/resumen', requireAuth, async (req, res) => {
     const estudianteId = req.session.user.id;
     try {
         const filtroIng = construirFiltroFecha(req.query, 'fecha');
         const filtroGas = construirFiltroFecha(req.query, 'fecha');
+        const filtroEsc = construirFiltroFecha(req.query, 'fecha');
 
         // Suma todos los ingresos del estudiante para el período solicitado
         const [ingresos] = await db.query(
             `SELECT COALESCE(SUM(monto), 0) AS total FROM ingresos WHERE estudiante_id = ?${filtroIng.sql}`, 
             [estudianteId, ...filtroIng.params]
         );
-        // Suma todos los gastos del estudiante para el período solicitado
+        // Suma todos los gastos generales del estudiante para el período solicitado
         const [gastos] = await db.query(
             `SELECT COALESCE(SUM(monto), 0) AS total FROM gastos WHERE estudiante_id = ?${filtroGas.sql}`, 
             [estudianteId, ...filtroGas.params]
         );
+        // Suma todos los gastos del calendario escolar para el período solicitado
+        const [gastosEsc] = await db.query(
+            `SELECT COALESCE(SUM(monto), 0) AS total FROM gastos_escolares WHERE estudiante_id = ?${filtroEsc.sql}`, 
+            [estudianteId, ...filtroEsc.params]
+        );
+        // Suma el dinero puesto en metas de ahorro activas
+        const [metasActivas] = await db.query(
+            `SELECT COALESCE(SUM(monto_ahorrado), 0) AS total, COUNT(*) AS cantidad FROM metas_ahorro WHERE estudiante_id = ? AND visible_panel = 1`,
+            [estudianteId]
+        );
 
         const totalIngresos = parseFloat(ingresos[0].total);
-        const totalGastos = parseFloat(gastos[0].total);
-        const saldoDisponible = totalIngresos - totalGastos; // Saldo = Ingresos - Gastos
+        const totalGastosGenerales = parseFloat(gastos[0].total);
+        const totalGastosEscolares = parseFloat(gastosEsc[0].total);
+        const totalGastos = totalGastosGenerales + totalGastosEscolares;
+        const totalAhorradoMetas = parseFloat(metasActivas[0].total);
+        const saldoDisponible = totalIngresos - totalGastos; // Saldo = Ingresos - Gastos Totales
 
-        // Devolvemos los montos calculados
+        // Devolvemos los montos calculados e indicador de saldo insuficiente
         res.json({
             totalIngresos,
+            totalGastosGenerales,
+            totalGastosEscolares,
             totalGastos,
+            totalAhorradoMetas,
+            cantidadMetasActivas: Number(metasActivas[0].cantidad || 0),
             saldoDisponible,
+            saldoInsuficiente: saldoDisponible <= 0,
             periodo: req.query.periodo || 'todo'
         });
     } catch (err) {
@@ -299,11 +352,10 @@ app.get('/api/resumen', requireAuth, async (req, res) => {
 });
 
 // RUTA GET /api/reportes/categorias -> Devuelve los gastos agrupados por categoría
-// (Alimentación, Transporte, Material escolar, etc.) respetando el filtro de fechas seleccionado
+// (Alimentación, Transporte, Material escolar, más Gastos del Calendario Escolar) respetando el filtro de fechas
 app.get('/api/reportes/categorias', requireAuth, async (req, res) => {
     const estudianteId = req.session.user.id;
     try {
-        // En esta consulta cruzamos categorías con gastos usando LEFT JOIN y filtramos por fecha en 'g.fecha'
         const filtro = construirFiltroFecha(req.query, 'g.fecha');
         const query = `
             SELECT c.nombre AS categoria, COALESCE(SUM(g.monto), 0) AS total
@@ -314,10 +366,119 @@ app.get('/api/reportes/categorias', requireAuth, async (req, res) => {
             ORDER BY total DESC
         `;
         const [rows] = await db.query(query, [estudianteId, ...filtro.params]);
+
+        // Incluimos también los gastos registrados en el Calendario Escolar dentro del período
+        const filtroEsc = construirFiltroFecha(req.query, 'fecha');
+        const [escRows] = await db.query(
+            `SELECT COALESCE(SUM(monto), 0) AS total FROM gastos_escolares WHERE estudiante_id = ?${filtroEsc.sql}`,
+            [estudianteId, ...filtroEsc.params]
+        );
+        const totalEscolar = parseFloat(escRows[0]?.total || 0);
+        if (totalEscolar > 0) {
+            rows.push({
+                categoria: 'Calendario Escolar (Colegio)',
+                total: totalEscolar
+            });
+            rows.sort((a, b) => parseFloat(b.total) - parseFloat(a.total));
+        }
+
         res.json(rows);
     } catch (err) {
         console.error("❌ Error en reporte de categorías:", err.message);
         res.status(500).json({ error: 'Error al obtener el reporte de categorías' });
+    }
+});
+
+// RUTA GET /api/reportes/mensual -> Devuelve toda la actividad del estudiante en un mes para imprimir el Reporte Mensual
+app.get('/api/reportes/mensual', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    const mesTarget = req.query.mes || new Date().toISOString().substring(0, 7);
+
+    try {
+        // 1. Ingresos del mes
+        const [ingresos] = await db.query(
+            `SELECT id, fuente, monto, fecha, descripcion
+             FROM ingresos
+             WHERE estudiante_id = ? AND DATE_FORMAT(fecha, '%Y-%m') = ?
+             ORDER BY fecha ASC, id ASC`,
+            [estudianteId, mesTarget]
+        );
+
+        // 2. Gastos generales del mes
+        const [gastos] = await db.query(
+            `SELECT g.id, g.monto, g.fecha, g.descripcion, c.nombre AS categoria
+             FROM gastos g
+             INNER JOIN categorias_gastos c ON g.categoria_id = c.id
+             WHERE g.estudiante_id = ? AND DATE_FORMAT(g.fecha, '%Y-%m') = ?
+             ORDER BY g.fecha ASC, g.id ASC`,
+            [estudianteId, mesTarget]
+        );
+
+        // 3. Gastos del calendario escolar en el mes
+        const [gastosEscolares] = await db.query(
+            `SELECT id, tipo, monto, fecha, descripcion
+             FROM gastos_escolares
+             WHERE estudiante_id = ? AND DATE_FORMAT(fecha, '%Y-%m') = ?
+             ORDER BY fecha ASC, id ASC`,
+            [estudianteId, mesTarget]
+        );
+
+        // 4. Todas las metas de ahorro que tuvo o tiene el estudiante (historial completo para el reporte)
+        const [metas] = await db.query(
+            `SELECT id, titulo, categoria, monto_objetivo, monto_ahorrado, estado, visible_panel, fecha_creacion, fecha_completada
+             FROM metas_ahorro
+             WHERE estudiante_id = ?
+             ORDER BY fecha_creacion DESC, id DESC`,
+            [estudianteId]
+        );
+
+        // 5. Desglose por categorías en el mes
+        const [categorias] = await db.query(
+            `SELECT c.nombre AS categoria, COALESCE(SUM(g.monto), 0) AS total
+             FROM categorias_gastos c
+             LEFT JOIN gastos g ON g.categoria_id = c.id AND g.estudiante_id = ? AND DATE_FORMAT(g.fecha, '%Y-%m') = ?
+             GROUP BY c.id, c.nombre
+             HAVING total > 0
+             ORDER BY total DESC`,
+            [estudianteId, mesTarget]
+        );
+
+        const totalIngresosMes = ingresos.reduce((acc, i) => acc + parseFloat(i.monto), 0);
+        const totalGastosGeneralesMes = gastos.reduce((acc, g) => acc + parseFloat(g.monto), 0);
+        const totalGastosEscolaresMes = gastosEscolares.reduce((acc, ge) => acc + parseFloat(ge.monto), 0);
+        const totalGastosMes = totalGastosGeneralesMes + totalGastosEscolaresMes;
+        const saldoMes = totalIngresosMes - totalGastosMes;
+
+        if (totalGastosEscolaresMes > 0) {
+            categorias.push({ categoria: 'Calendario Escolar (Colegio)', total: totalGastosEscolaresMes });
+            categorias.sort((a, b) => parseFloat(b.total) - parseFloat(a.total));
+        }
+
+        const global = await obtenerSaldoGlobal(estudianteId);
+
+        res.json({
+            estudiante: req.session.user,
+            mes: mesTarget,
+            resumen: {
+                totalIngresos: totalIngresosMes,
+                totalGastosGenerales: totalGastosGeneralesMes,
+                totalGastosEscolares: totalGastosEscolaresMes,
+                totalGastos: totalGastosMes,
+                saldoMes,
+                saldoGeneral: global.saldoDisponible,
+                totalAhorradoMetas: metas.reduce((acc, m) => acc + parseFloat(m.monto_ahorrado), 0),
+                metasCompletadas: metas.filter(m => m.estado === 'completada').length,
+                totalMetas: metas.length
+            },
+            ingresos,
+            gastos,
+            gastosEscolares,
+            categorias,
+            metas
+        });
+    } catch (err) {
+        console.error("❌ Error en reporte mensual:", err.message);
+        res.status(500).json({ error: 'Error al generar el reporte mensual completo' });
     }
 });
 
@@ -410,21 +571,40 @@ app.get('/api/gastos', requireAuth, async (req, res) => {
     }
 });
 
-// RUTA POST /api/gastos -> Guarda un nuevo gasto registrado por el estudiante
+// RUTA POST /api/gastos -> Guarda un nuevo gasto registrado por el estudiante (con verificación de saldo insuficiente)
 app.post('/api/gastos', requireAuth, async (req, res) => {
     const estudianteId = req.session.user.id;
-    const { categoria_id, monto, fecha, descripcion } = req.body;
+    const { categoria_id, monto, fecha, descripcion, forzar } = req.body;
+    const montoNum = parseFloat(monto);
 
-    if (!categoria_id || !monto || !fecha) {
-        return res.status(400).json({ error: 'Datos incompletos para registrar el gasto' });
+    if (!categoria_id || isNaN(montoNum) || montoNum <= 0 || !fecha) {
+        return res.status(400).json({ error: 'Datos incompletos o monto inválido para registrar el gasto' });
     }
 
     try {
+        const balance = await obtenerSaldoGlobal(estudianteId);
+        // Si el gasto supera el saldo disponible y no fue confirmado explícitamente, devolvemos alerta de saldo insuficiente
+        if (!forzar && montoNum > balance.saldoDisponible) {
+            const faltante = montoNum - Math.max(balance.saldoDisponible, 0);
+            return res.status(400).json({
+                codigo: 'SALDO_INSUFICIENTE',
+                error: `¡Saldo insuficiente! Tu saldo disponible es Bs. ${balance.saldoDisponible.toFixed(2)} y el gasto es de Bs. ${montoNum.toFixed(2)} (te faltan Bs. ${faltante.toFixed(2)}).`,
+                saldoDisponible: balance.saldoDisponible,
+                montoSolicitado: montoNum,
+                faltante
+            });
+        }
+
         await db.query(
             'INSERT INTO gastos (estudiante_id, categoria_id, monto, fecha, descripcion) VALUES (?, ?, ?, ?, ?)',
-            [estudianteId, categoria_id, monto, fecha, descripcion || '']
+            [estudianteId, categoria_id, montoNum, fecha, descripcion || '']
         );
-        res.json({ mensaje: 'Gasto guardado exitosamente' });
+        const nuevoSaldo = balance.saldoDisponible - montoNum;
+        res.json({
+            mensaje: 'Gasto guardado exitosamente',
+            saldoDisponible: nuevoSaldo,
+            saldoInsuficiente: nuevoSaldo <= 0
+        });
     } catch (err) {
         console.error("❌ Error al registrar gasto:", err.message);
         res.status(500).json({ error: 'Error al guardar el gasto' });
@@ -444,15 +624,295 @@ app.delete('/api/gastos/:id', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// 5. ENRUTAMIENTO DE PÁGINAS WEB (FRONTEND SPA)
+// 5. MÓDULO DE METAS DE AHORRO PERSONAL E HISTORIAL DE METAS DEL ESTUDIANTE
+// =============================================================================
+
+// RUTA GET /api/metas -> Devuelve las metas activas del panel y el historial de todas las metas del estudiante
+app.get('/api/metas', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    try {
+        const [todas] = await db.query(
+            `SELECT * FROM metas_ahorro
+             WHERE estudiante_id = ?
+             ORDER BY visible_panel DESC, estado ASC, fecha_creacion DESC, id DESC`,
+            [estudianteId]
+        );
+        const activas = todas.filter(m => Number(m.visible_panel) === 1);
+        res.json({
+            activas,
+            historial: todas,
+            resumen: {
+                totalMetas: todas.length,
+                metasActivas: activas.length,
+                metasCompletadas: todas.filter(m => m.estado === 'completada').length,
+                totalAhorradoActivo: activas.reduce((acc, m) => acc + parseFloat(m.monto_ahorrado), 0),
+                totalAhorradoHistorico: todas.reduce((acc, m) => acc + parseFloat(m.monto_ahorrado), 0)
+            }
+        });
+    } catch (err) {
+        console.error("❌ Error al listar metas:", err.message);
+        res.status(500).json({ error: 'Error al obtener las metas de ahorro' });
+    }
+});
+
+// RUTA POST /api/metas -> Crea una nueva meta de ahorro personal para el estudiante
+app.post('/api/metas', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    const titulo = (req.body.titulo || '').trim();
+    const categoria = (req.body.categoria || 'Personal').trim();
+    const montoObjetivo = parseFloat(req.body.monto_objetivo);
+    const montoInicial = parseFloat(req.body.monto_ahorrado || 0);
+    const fechaCreacion = req.body.fecha_creacion || new Date().toISOString().split('T')[0];
+    const forzar = Boolean(req.body.forzar);
+
+    if (!titulo || isNaN(montoObjetivo) || montoObjetivo <= 0) {
+        return res.status(400).json({ error: 'Debes indicar qué quieres comprarte y el monto de tu meta' });
+    }
+    if (isNaN(montoInicial) || montoInicial < 0) {
+        return res.status(400).json({ error: 'El monto inicial ahorrado no puede ser negativo' });
+    }
+
+    try {
+        if (montoInicial > 0 && !forzar) {
+            const balance = await obtenerSaldoGlobal(estudianteId);
+            if (montoInicial > balance.saldoDisponible) {
+                const faltante = montoInicial - Math.max(balance.saldoDisponible, 0);
+                return res.status(400).json({
+                    codigo: 'SALDO_INSUFICIENTE',
+                    error: `¡Saldo insuficiente! Quieres poner Bs. ${montoInicial.toFixed(2)} en tu meta, pero tu saldo disponible actual es Bs. ${balance.saldoDisponible.toFixed(2)} (te faltan Bs. ${faltante.toFixed(2)}).`,
+                    saldoDisponible: balance.saldoDisponible,
+                    montoSolicitado: montoInicial,
+                    faltante
+                });
+            }
+        }
+
+        const completada = montoInicial >= montoObjetivo;
+        const estado = completada ? 'completada' : 'en_progreso';
+        const fechaCompletada = completada ? new Date() : null;
+
+        await db.query(
+            `INSERT INTO metas_ahorro (estudiante_id, titulo, categoria, monto_objetivo, monto_ahorrado, estado, visible_panel, fecha_creacion, fecha_completada)
+             VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+            [estudianteId, titulo, categoria, montoObjetivo, montoInicial, estado, fechaCreacion, fechaCompletada]
+        );
+
+        res.json({ mensaje: completada ? '¡Meta creada y completada!' : 'Meta de ahorro creada exitosamente', completada });
+    } catch (err) {
+        console.error("❌ Error al crear meta:", err.message);
+        res.status(500).json({ error: 'Error al guardar la meta de ahorro' });
+    }
+});
+
+// RUTA POST /api/metas/:id/abonar -> Pone/agrega más dinero a una meta de ahorro existente
+app.post('/api/metas/:id/abonar', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    const metaId = req.params.id;
+    const montoAbono = parseFloat(req.body.monto);
+    const forzar = Boolean(req.body.forzar);
+
+    if (isNaN(montoAbono) || montoAbono <= 0) {
+        return res.status(400).json({ error: 'Ingresa un monto válido mayor a Bs. 0.00' });
+    }
+
+    try {
+        const [metas] = await db.query('SELECT * FROM metas_ahorro WHERE id = ? AND estudiante_id = ?', [metaId, estudianteId]);
+        if (metas.length === 0) {
+            return res.status(404).json({ error: 'Meta de ahorro no encontrada' });
+        }
+
+        if (!forzar) {
+            const balance = await obtenerSaldoGlobal(estudianteId);
+            if (montoAbono > balance.saldoDisponible) {
+                const faltante = montoAbono - Math.max(balance.saldoDisponible, 0);
+                return res.status(400).json({
+                    codigo: 'SALDO_INSUFICIENTE',
+                    error: `¡Saldo insuficiente! Intentas abonar Bs. ${montoAbono.toFixed(2)} a tu meta, pero tu saldo disponible es Bs. ${balance.saldoDisponible.toFixed(2)} (te faltan Bs. ${faltante.toFixed(2)}).`,
+                    saldoDisponible: balance.saldoDisponible,
+                    montoSolicitado: montoAbono,
+                    faltante
+                });
+            }
+        }
+
+        const meta = metas[0];
+        const nuevoAhorrado = parseFloat(meta.monto_ahorrado) + montoAbono;
+        const objetivo = parseFloat(meta.monto_objetivo);
+        const completada = nuevoAhorrado >= objetivo;
+        const nuevoEstado = completada ? 'completada' : 'en_progreso';
+        const fechaCompletada = completada ? (meta.fecha_completada || new Date()) : null;
+
+        await db.query(
+            'UPDATE metas_ahorro SET monto_ahorrado = ?, estado = ?, fecha_completada = ? WHERE id = ? AND estudiante_id = ?',
+            [nuevoAhorrado, nuevoEstado, fechaCompletada, metaId, estudianteId]
+        );
+
+        res.json({
+            mensaje: completada ? '🎉 ¡Felicidades! Has completado tu meta de ahorro. Ya puedes borrarla del panel activo cuando quieras.' : 'Abono registrado en tu meta',
+            completada,
+            montoAhorrado: nuevoAhorrado
+        });
+    } catch (err) {
+        console.error("❌ Error al abonar a meta:", err.message);
+        res.status(500).json({ error: 'Error al registrar el abono en la meta' });
+    }
+});
+
+// RUTA PUT /api/metas/:id/completar -> Marca manualmente una meta como completada
+app.put('/api/metas/:id/completar', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    const metaId = req.params.id;
+    try {
+        const [metas] = await db.query('SELECT * FROM metas_ahorro WHERE id = ? AND estudiante_id = ?', [metaId, estudianteId]);
+        if (metas.length === 0) return res.status(404).json({ error: 'Meta no encontrada' });
+
+        const meta = metas[0];
+        const montoFinal = Math.max(parseFloat(meta.monto_ahorrado), parseFloat(meta.monto_objetivo));
+
+        await db.query(
+            "UPDATE metas_ahorro SET monto_ahorrado = ?, estado = 'completada', fecha_completada = COALESCE(fecha_completada, NOW()) WHERE id = ? AND estudiante_id = ?",
+            [montoFinal, metaId, estudianteId]
+        );
+        res.json({ mensaje: '¡Meta marcada como completada!' });
+    } catch (err) {
+        console.error("❌ Error al completar meta:", err.message);
+        res.status(500).json({ error: 'Error al completar la meta' });
+    }
+});
+
+// RUTA DELETE /api/metas/:id -> Borra la meta del panel activo (manteniéndola en el historial para el reporte mensual)
+// o la elimina definitivamente si se envía ?definitivo=1
+app.delete('/api/metas/:id', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    const metaId = req.params.id;
+    const definitivo = req.query.definitivo === '1';
+
+    try {
+        if (definitivo) {
+            await db.query('DELETE FROM metas_ahorro WHERE id = ? AND estudiante_id = ?', [metaId, estudianteId]);
+            return res.json({ mensaje: 'Meta eliminada definitivamente del historial' });
+        } else {
+            // Al borrarla del panel de metas activas, la ocultamos del panel activo pero la conservamos en el historial de todas las metas para el reporte mensual
+            await db.query(
+                'UPDATE metas_ahorro SET visible_panel = 0 WHERE id = ? AND estudiante_id = ?',
+                [metaId, estudianteId]
+            );
+            return res.json({ mensaje: 'Meta retirada de tus metas activas (guardada en tu historial de metas para el reporte mensual)' });
+        }
+    } catch (err) {
+        console.error("❌ Error al borrar meta:", err.message);
+        res.status(500).json({ error: 'Error al borrar la meta de ahorro' });
+    }
+});
+
+// =============================================================================
+// 6. MÓDULO DE CALENDARIO ESCOLAR (GASTOS EXCLUSIVOS EN EL COLEGIO)
+// =============================================================================
+
+// RUTA GET /api/calendario-escolar -> Obtiene los gastos del colegio del mes seleccionado y su resumen por tipo para gráficos
+app.get('/api/calendario-escolar', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    const mes = req.query.mes; // Formato opcional 'YYYY-MM'
+    try {
+        let sql = 'SELECT * FROM gastos_escolares WHERE estudiante_id = ?';
+        const params = [estudianteId];
+
+        if (mes) {
+            sql += " AND DATE_FORMAT(fecha, '%Y-%m') = ?";
+            params.push(mes);
+        }
+        sql += ' ORDER BY fecha DESC, id DESC';
+
+        const [gastos] = await db.query(sql, params);
+
+        // Agrupamos por tipo para el gráfico animado del calendario escolar
+        const mapaTipos = {};
+        let totalMes = 0;
+        for (const g of gastos) {
+            const m = parseFloat(g.monto);
+            totalMes += m;
+            mapaTipos[g.tipo] = (mapaTipos[g.tipo] || 0) + m;
+        }
+        const porTipo = Object.entries(mapaTipos)
+            .map(([tipo, total]) => ({ tipo, total }))
+            .sort((a, b) => b.total - a.total);
+
+        res.json({
+            gastos,
+            porTipo,
+            totalMes
+        });
+    } catch (err) {
+        console.error("❌ Error al consultar calendario escolar:", err.message);
+        res.status(500).json({ error: 'Error al cargar los gastos del calendario escolar' });
+    }
+});
+
+// RUTA POST /api/calendario-escolar -> Registra un gasto exclusivo del colegio en una fecha del calendario
+app.post('/api/calendario-escolar', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    const tipo = (req.body.tipo || '').trim();
+    const montoNum = parseFloat(req.body.monto);
+    const fecha = req.body.fecha;
+    const descripcion = (req.body.descripcion || '').trim();
+    const forzar = Boolean(req.body.forzar);
+
+    if (!tipo || isNaN(montoNum) || montoNum <= 0 || !fecha) {
+        return res.status(400).json({ error: 'Completa el tipo de gasto escolar, monto y fecha' });
+    }
+
+    try {
+        const balance = await obtenerSaldoGlobal(estudianteId);
+        if (!forzar && montoNum > balance.saldoDisponible) {
+            const faltante = montoNum - Math.max(balance.saldoDisponible, 0);
+            return res.status(400).json({
+                codigo: 'SALDO_INSUFICIENTE',
+                error: `¡Saldo insuficiente! Tu saldo disponible es Bs. ${balance.saldoDisponible.toFixed(2)} y este gasto escolar (${tipo}) es de Bs. ${montoNum.toFixed(2)} (te faltan Bs. ${faltante.toFixed(2)}).`,
+                saldoDisponible: balance.saldoDisponible,
+                montoSolicitado: montoNum,
+                faltante
+            });
+        }
+
+        await db.query(
+            'INSERT INTO gastos_escolares (estudiante_id, tipo, monto, fecha, descripcion) VALUES (?, ?, ?, ?, ?)',
+            [estudianteId, tipo, montoNum, fecha, descripcion]
+        );
+
+        const nuevoSaldo = balance.saldoDisponible - montoNum;
+        res.json({
+            mensaje: 'Gasto escolar anotado en el calendario',
+            saldoDisponible: nuevoSaldo,
+            saldoInsuficiente: nuevoSaldo <= 0
+        });
+    } catch (err) {
+        console.error("❌ Error al guardar gasto escolar:", err.message);
+        res.status(500).json({ error: 'Error al guardar el gasto en el calendario escolar' });
+    }
+});
+
+// RUTA DELETE /api/calendario-escolar/:id -> Elimina un gasto del calendario escolar
+app.delete('/api/calendario-escolar/:id', requireAuth, async (req, res) => {
+    const estudianteId = req.session.user.id;
+    try {
+        await db.query('DELETE FROM gastos_escolares WHERE id = ? AND estudiante_id = ?', [req.params.id, estudianteId]);
+        res.json({ mensaje: 'Gasto escolar eliminado del calendario' });
+    } catch (err) {
+        console.error("❌ Error al eliminar gasto escolar:", err.message);
+        res.status(500).json({ error: 'Error al eliminar el gasto escolar' });
+    }
+});
+
+// =============================================================================
+// 7. ENRUTAMIENTO DE PÁGINAS WEB (FRONTEND SPA)
 // =============================================================================
 // Como esta es una aplicación de una sola página (SPA), cualquier dirección que el usuario
 // escriba directamente en el navegador (ejemplo: http://localhost:3000/reportes o /gastos)
 // entregará el archivo principal 'index.html', y el JavaScript se encargará de mostrar la pestaña adecuada.
 const RUTAS_PANTALLAS = [
     '/login', '/registro',
-    '/inicio', '/ingresos', '/gastos', '/reportes',
-    '/admin', '/admin/estudiantes', '/admin/seguridad', '/admin/backup'
+    '/inicio', '/ingresos', '/gastos', '/calendario', '/reportes',
+    '/admin', '/admin/estudiantes', '/admin/seguridad', '/admin/backup', '/admin/password'
 ];
 app.get(RUTAS_PANTALLAS, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));

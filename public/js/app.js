@@ -5,68 +5,166 @@
 // teléfono celular o en la computadora del estudiante o administrador).
 // Sus funciones principales son:
 // 1. Manejar el inicio de sesión y registro de estudiantes.
-// 2. Controlar la navegación táctil entre pestañas (Inicio, Ingresos, Gastos, Reportes).
-// 3. Registrar y borrar ingresos y gastos en tiempo real sin recargar la página.
-// 4. Procesar los filtros de fecha (Día, Semanal, Mes y Todo).
-// 5. Dibujar los gráficos circulares interactivos con Chart.js:
-//    - Torta 1: Estado del Presupuesto (Gastado vs Restante).
-//    - Torta 2: Meta de Ahorro del 30% (Ahorro actual vs Faltante).
-//    - Torta 3: Gastos por Categoría y su desglose en tabla.
-// 6. Gestionar el Panel de Administración (estudiantes, seguridad y copias de seguridad).
+// 2. Controlar la navegación animada entre pestañas (Inicio, Ingresos, Gastos, Calendario, Reportes).
+// 3. Alertar inmediatamente cuando el estudiante tenga SALDO INSUFICIENTE.
+// 4. Gestionar el Panel de Metas de Ahorro Personal y el Historial de Todas las Metas.
+// 5. Alternar entre Tema Claro y Tema Oscuro (con persistencia en el navegador).
+// 6. Gestionar el Calendario Escolar interactivo para gastos exclusivos del colegio.
+// 7. Generar e imprimir el Reporte Mensual Completo y dibujar gráficos animados con Chart.js.
+// 8. Gestionar el Panel de Administración (estudiantes, seguridad y copias de seguridad).
 // =============================================================================
 
-// Variables globales para guardar las instancias activas de los 3 gráficos circulares.
-// Es necesario guardarlas porque antes de volver a dibujar un gráfico nuevo, debemos
-// destruir el gráfico anterior para que no se superpongan ni parpadeen.
-let categoryChartInstance = null; // Gráfico de gastos por categoría
-let budgetChartInstance = null;   // Gráfico de estado del presupuesto
-let savingsChartInstance = null;  // Gráfico de meta de ahorro
+// Variables globales para guardar las instancias activas de los gráficos de Chart.js
+let categoryChartInstance = null;       // Gráfico de gastos por categoría
+let budgetChartInstance = null;         // Gráfico de estado del presupuesto
+let savingsChartInstance = null;        // Gráfico de meta de ahorro (30%)
+let schoolCalendarChartInstance = null; // Gráfico animado de gastos del calendario escolar
+
+// Estado global del estudiante conectado y su saldo disponible actual
+let currentStudentUser = null;
+let saldoGlobalDisponible = 0;
+let totalIngresosGlobal = 0;
+let pendingForceAction = null; // Guarda la operación pendiente si el usuario decide forzar con saldo insuficiente
+
+// Estado del Calendario Escolar
+const hoyISO = new Date().toISOString().split('T')[0];
+let calendarState = {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(), // 0 = Enero ... 11 = Diciembre
+    selectedDate: hoyISO,
+    gastosMes: [],
+    porTipo: [],
+    totalMes: 0
+};
+
+const NOMBRES_MESES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
 
 // =============================================================================
 // 1. INICIALIZACIÓN DEL SISTEMA AL CARGAR LA PÁGINA
 // =============================================================================
-// Este evento se dispara automáticamente apenas el navegador termina de leer el HTML.
 document.addEventListener('DOMContentLoaded', () => {
-    checkSession();         // 1. Pregunta al servidor si el usuario ya tenía su sesión abierta
-    setupNavigation();      // 2. Activa los botones de navegación inferior
-    setupForms();           // 3. Conecta los formularios para registrar ingresos y gastos
-    setupAdmin();           // 4. Prepara los botones y buscador del panel administrativo
-    setupReportFilters();   // 5. Configura los botones de filtro por Día, Semana, Mes y Todo
-    setDefaultDates();      // 6. Pone la fecha de hoy automáticamente en los formularios
+    initTheme();            // 1. Aplica el Tema Claro u Oscuro preferido del usuario
+    checkSession();         // 2. Pregunta al servidor si el usuario ya tenía su sesión abierta
+    setupNavigation();      // 3. Activa los botones de navegación inferior con animación
+    setupForms();           // 4. Conecta los formularios de ingresos, gastos, metas y calendario escolar
+    setupLiveBalanceWarnings(); // 5. Conecta avisos en vivo de saldo insuficiente al escribir montos
+    setupAdmin();           // 6. Prepara los botones y buscador del panel administrativo
+    setupReportFilters();   // 7. Configura los botones de filtro por Día, Semana, Mes y Todo
+    setDefaultDates();      // 8. Pone la fecha de hoy automáticamente en los formularios
 });
 
-// Función de protección: Convierte caracteres especiales en texto seguro
-// para evitar que alguien intente inyectar código dañino (ataques XSS).
+// Función de protección contra ataques XSS
 function escapeHtml(texto) {
     return String(texto ?? '').replace(/[&<>"']/g, c => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[c]);
 }
 
+// Muestra una notificación flotante animada (Toast) en la parte superior
+function showToast(mensaje, tipo = 'primary') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const iconos = {
+        primary: 'fa-info-circle',
+        success: 'fa-check-circle',
+        danger: 'fa-exclamation-triangle',
+        warning: 'fa-exclamation-circle'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast-item toast-${tipo}`;
+    toast.innerHTML = `
+        <i class="fas ${iconos[tipo] || iconos.primary}"></i>
+        <div style="flex:1;">${escapeHtml(mensaje)}</div>
+    `;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 260);
+    }, 3800);
+}
+
+// =============================================================================
+// 1.1 TEMA CLARO Y TEMA OSCURO (DARK / LIGHT MODE)
+// =============================================================================
+function initTheme() {
+    const guardado = localStorage.getItem('finanzgagnon_theme') || 'light';
+    applyTheme(guardado);
+}
+
+function toggleTheme() {
+    const actual = document.documentElement.getAttribute('data-theme') || 'light';
+    const nuevo = actual === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('finanzgagnon_theme', nuevo);
+    applyTheme(nuevo);
+    showToast(nuevo === 'dark' ? '🌙 Tema oscuro activado' : '☀️ Tema claro activado', 'primary');
+}
+
+function applyTheme(tema) {
+    document.documentElement.setAttribute('data-theme', tema);
+    const esOscuro = tema === 'dark';
+
+    document.querySelectorAll('.theme-icon').forEach(ic => {
+        ic.className = esOscuro ? 'fas fa-sun theme-icon' : 'fas fa-moon theme-icon';
+    });
+    document.querySelectorAll('.theme-label').forEach(lbl => {
+        lbl.innerText = esOscuro ? 'Modo Claro' : 'Modo Oscuro';
+    });
+
+    // Actualiza colores de texto y bordes de los gráficos activos para que luzcan nítidos en ambos temas
+    const textColor = esOscuro ? '#f1f5f9' : '#1e293b';
+    const borderColor = esOscuro ? '#1e293b' : '#ffffff';
+
+    [budgetChartInstance, savingsChartInstance, categoryChartInstance, schoolCalendarChartInstance].forEach(chart => {
+        if (!chart) return;
+        if (chart.options?.plugins?.legend?.labels) {
+            chart.options.plugins.legend.labels.color = textColor;
+        }
+        if (chart.options?.scales) {
+            if (chart.options.scales.x?.ticks) chart.options.scales.x.ticks.color = textColor;
+            if (chart.options.scales.y?.ticks) chart.options.scales.y.ticks.color = textColor;
+        }
+        chart.data?.datasets?.forEach(ds => {
+            if (ds.borderWidth) ds.borderColor = borderColor;
+        });
+        chart.update();
+    });
+}
+
+function getChartThemeColors() {
+    const esOscuro = document.documentElement.getAttribute('data-theme') === 'dark';
+    return {
+        textColor: esOscuro ? '#f1f5f9' : '#1e293b',
+        gridColor: esOscuro ? 'rgba(148, 163, 184, 0.15)' : 'rgba(148, 163, 184, 0.25)',
+        borderColor: esOscuro ? '#1e293b' : '#ffffff'
+    };
+}
+
 // =============================================================================
 // 2. CONTROL DE ACCESO Y SESIÓN DE USUARIOS
 // =============================================================================
-
-// Pregunta al servidor si existe una sesión activa actualmente
 async function checkSession() {
     try {
         const res = await fetch('/api/session');
         const data = await res.json();
 
         if (data.autenticado) {
-            // Si el usuario ya estaba conectado, entramos directamente a su pantalla
             enterAs(data.usuario);
         } else {
-            // Si no estaba conectado, mostramos la pantalla de inicio de sesión
             showLogin();
         }
     } catch {
-        // En caso de que no haya conexión con el servidor, mostramos la pantalla de login
         showLogin();
     }
 }
 
-// Muestra la pantalla de acceso (login) y oculta las demás pantallas
 function showLogin() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app-screen').style.display = 'none';
@@ -74,13 +172,11 @@ function showLogin() {
     showAuthForm(location.pathname === '/registro' ? 'registro' : 'login', { historial: 'replace' });
 }
 
-// Redirige al usuario según su rol: 'admin' al panel administrativo, estudiante a la app principal
 function enterAs(usuario) {
     if (usuario.rol === 'admin') showAdmin(usuario);
     else showApp(usuario);
 }
 
-// Alterna visualmente entre el formulario de Iniciar Sesión y el de Registrarse
 function showAuthForm(tipo, { historial = 'push' } = {}) {
     const esRegistro = tipo === 'registro';
     document.getElementById('form-login').style.display = esRegistro ? 'none' : 'block';
@@ -91,66 +187,66 @@ function showAuthForm(tipo, { historial = 'push' } = {}) {
 }
 
 // =============================================================================
-// 2.1 DIRECCIONES URL Y NAVEGACIÓN LIMPIA (SPA - Single Page Application)
+// 2.1 DIRECCIONES URL Y NAVEGACIÓN ANIMADA (SPA)
 // =============================================================================
-
-// Diccionario que vincula cada dirección URL con su pestaña interna correspondiente
 const RUTAS = {
     '/inicio': 'tab-inicio',
     '/ingresos': 'tab-ingresos',
     '/gastos': 'tab-gastos',
+    '/calendario': 'tab-calendario',
     '/reportes': 'tab-reportes',
     '/admin/estudiantes': 'tab-admin-estudiantes',
     '/admin/seguridad': 'tab-admin-seguridad',
-    '/admin/backup': 'tab-admin-backup'
+    '/admin/backup': 'tab-admin-backup',
+    '/admin/password': 'tab-admin-password'
 };
 const RUTA_DE_TAB = Object.fromEntries(Object.entries(RUTAS).map(([ruta, tab]) => [tab, ruta]));
 
-// Actualiza la barra de direcciones del navegador sin recargar la página completa
 function setUrl(ruta, historial) {
-    if (historial === 'none' || location.pathname === ruta) return;
+    if (historial === 'none' || !ruta || location.pathname === ruta) return;
     if (historial === 'replace') history.replaceState(null, '', ruta);
     else history.pushState(null, '', ruta);
 }
 
-// Determina qué pestaña debe abrirse al cargar la página según la URL escrita
 function tabInicial(screenId, tabPorDefecto) {
     const tab = RUTAS[location.pathname];
     return tab && document.getElementById(screenId).contains(document.getElementById(tab)) ? tab : tabPorDefecto;
 }
 
-// Activa una pestaña seleccionada, resalta su botón inferior y carga sus datos actualizados
+// Activa una pestaña con animación fluida y carga sus datos actualizados
 function activateTab(tabId, { historial = 'push' } = {}) {
     const tab = document.getElementById(tabId);
+    if (!tab) return;
     const screen = tab.closest('.view');
 
     // Marca el botón activo en la barra inferior
     screen.querySelectorAll('.bottom-nav .nav-item').forEach(b =>
         b.classList.toggle('active', b.getAttribute('data-tab') === tabId));
-    // Oculta todas las pestañas y muestra únicamente la elegida
+
+    // Oculta todas las pestañas y activa con animación la seleccionada
     screen.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active-tab'));
+    // Forzamos reflow para que la animación de cambio de menú se reproduzca siempre
+    void tab.offsetWidth;
     tab.classList.add('active-tab');
 
-    // Cambia la dirección URL para que coincida
     setUrl(RUTA_DE_TAB[tabId], historial);
-    // Ejecuta la función de carga específica de esa pestaña
     TAB_LOADERS[tabId]?.();
 }
 
-// Escucha cuando el usuario presiona el botón "Atrás" o "Adelante" en su teléfono o navegador
 window.addEventListener('popstate', () => {
     const tabId = RUTAS[location.pathname];
     const loginVisible = document.getElementById('login-screen').style.display !== 'none';
 
     if (loginVisible) {
         showAuthForm(location.pathname === '/registro' ? 'registro' : 'login', { historial: 'none' });
-    } else if (tabId && document.getElementById(tabId).closest('.view').style.display !== 'none') {
+    } else if (tabId && document.getElementById(tabId)?.closest('.view').style.display !== 'none') {
         activateTab(tabId, { historial: 'none' });
     }
 });
 
-// Abre la pantalla principal del estudiante y le da la bienvenida
+// Abre la pantalla principal del estudiante
 function showApp(estudiante) {
+    currentStudentUser = estudiante;
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('admin-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'block';
@@ -160,16 +256,15 @@ function showApp(estudiante) {
     document.getElementById('welcome-msg').innerText = `¡Hola, ${estudiante.nombre}!`;
     document.getElementById('course-msg').innerText = `Curso: ${estudiante.curso || 'Estudiante'}`;
 
-    // Abre la pestaña correspondiente y precarga categorías
     const tab = tabInicial('app-screen', 'tab-inicio');
     activateTab(tab, { historial: 'replace' });
     if (tab !== 'tab-inicio') loadDashboard();
     loadCategoriasSelect();
 }
 
-// Procesa el formulario cuando el usuario presiona "Iniciar sesión"
+// Procesa el formulario de Inicio de Sesión
 document.getElementById('form-login').addEventListener('submit', async (e) => {
-    e.preventDefault(); // Evita recargar la página
+    e.preventDefault();
 
     const usuario = document.getElementById('login-user').value.trim();
     const password = document.getElementById('login-pass').value.trim();
@@ -198,14 +293,13 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
     }
 });
 
-// Procesa el formulario cuando un estudiante nuevo se registra
+// Procesa el formulario de Registro de Estudiante
 document.getElementById('form-registro').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorBox = document.getElementById('registro-error');
     errorBox.style.display = 'none';
 
     const password = document.getElementById('reg-pass').value;
-    // Comprobamos que las dos contraseñas sean idénticas
     if (password !== document.getElementById('reg-pass2').value) {
         errorBox.innerText = 'Las contraseñas no coinciden';
         errorBox.style.display = 'block';
@@ -239,27 +333,27 @@ document.getElementById('form-registro').addEventListener('submit', async (e) =>
     }
 });
 
-// Botones para cerrar sesión (en el perfil del estudiante y en el del administrador)
+// Botones para cerrar sesión
 ['btn-logout', 'btn-admin-logout'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', async () => {
         await fetch('/api/logout', { method: 'POST' });
-        location.reload(); // Recarga la página limpia
+        location.reload();
     });
 });
 
 // =============================================================================
-// 3. NAVEGACIÓN INFERIOR (MENÚ PARA CELULARES Y COMPUTADORAS)
+// 3. NAVEGACIÓN INFERIOR (MENÚ CON ANIMACIÓN)
 // =============================================================================
-
-// Vincula cada pestaña con la función encargada de consultar sus datos
 const TAB_LOADERS = {
-    'tab-inicio': () => loadDashboard(),
+    'tab-inicio': () => { loadDashboard(); loadMetas(); },
     'tab-ingresos': () => loadIngresos(),
     'tab-gastos': () => loadGastos(),
+    'tab-calendario': () => loadCalendarioEscolar(),
     'tab-reportes': () => loadReportes(),
     'tab-admin-estudiantes': () => loadAdminEstudiantes(),
     'tab-admin-seguridad': () => loadSeguridad(),
-    'tab-admin-backup': () => loadSeguridad()
+    'tab-admin-backup': () => loadSeguridad(),
+    'tab-admin-password': () => loadSeguridad()
 };
 
 function setupNavigation() {
@@ -269,55 +363,343 @@ function setupNavigation() {
 }
 
 // =============================================================================
-// 4. VENTANAS FLOTANTES (MODALES) Y FECHAS
+// 4. VENTANAS FLOTANTES (MODALES) Y FECHAS POR DEFECTO
 // =============================================================================
-
-// Abre una ventanita flotante (modal) por su ID
-function openModal(id) { 
-    document.getElementById(id).classList.add('active'); 
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('active');
+    // Limpia advertencias previas al abrir
+    el.querySelectorAll('.alert-error').forEach(w => { w.style.display = 'none'; });
 }
 
-// Cierra la ventanita flotante
-function closeModal(id) { 
-    document.getElementById(id).classList.remove('active'); 
+function closeModal(id) {
+    document.getElementById(id)?.classList.remove('active');
 }
 
-// Pone la fecha del día de hoy en formato AAAA-MM-DD en los campos de fecha
 function setDefaultDates() {
     const today = new Date().toISOString().split('T')[0];
-    const elIng = document.getElementById('ingreso-fecha');
-    const elGas = document.getElementById('gasto-fecha');
-    if (elIng) elIng.value = today;
-    if (elGas) elGas.value = today;
+    ['ingreso-fecha', 'gasto-fecha', 'escolar-fecha'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = today;
+    });
 }
 
 // =============================================================================
-// 5. PANTALLA PRINCIPAL (DASHBOARD): TOTALES Y BALANCES
+// 5. SISTEMA DE ALERTA DE SALDO INSUFICIENTE Y PANEL DEL ESTUDIANTE
 // =============================================================================
-
-// Pide al servidor las sumas de ingresos, gastos y saldo, y las pinta en las tarjetas de colores
 async function loadDashboard() {
     try {
         const res = await fetch('/api/resumen');
         const data = await res.json();
 
-        // Muestra los números en moneda boliviana con 2 decimales (ejemplo: Bs. 150.00)
+        saldoGlobalDisponible = Number(data.saldoDisponible || 0);
+        totalIngresosGlobal = Number(data.totalIngresos || 0);
+
         document.getElementById('dash-ingresos').innerText = `Bs. ${data.totalIngresos.toFixed(2)}`;
         document.getElementById('dash-gastos').innerText = `Bs. ${data.totalGastos.toFixed(2)}`;
         document.getElementById('dash-saldo').innerText = `Bs. ${data.saldoDisponible.toFixed(2)}`;
+
+        const subEscolar = document.getElementById('dash-gastos-escolares-sub');
+        if (subEscolar) {
+            subEscolar.innerText = `Colegio: Bs. ${(data.totalGastosEscolares || 0).toFixed(2)}`;
+        }
+
+        const dashMetasAhorro = document.getElementById('dash-metas-ahorro');
+        if (dashMetasAhorro) {
+            dashMetasAhorro.innerText = `Bs. ${(data.totalAhorradoMetas || 0).toFixed(2)}`;
+        }
+        const dashMetasCount = document.getElementById('dash-metas-count');
+        if (dashMetasCount) {
+            const cant = data.cantidadMetasActivas || 0;
+            dashMetasCount.innerText = `${cant} meta${cant === 1 ? '' : 's'} activa${cant === 1 ? '' : 's'}`;
+        }
+
+        actualizarEstadoVisualSaldo(data.saldoDisponible, data.totalIngresos, data.totalGastos);
     } catch (e) {
         console.error("Error al cargar balances:", e);
     }
 }
 
-// =============================================================================
-// 5.1 CONFIGURACIÓN DE DIAGNÓSTICO (PRESUPUESTO Y AHORRO) PARA REPORTES
-// =============================================================================
+// Evalúa si el estudiante tiene saldo insuficiente o por agotarse y muestra el banner/alerta
+function actualizarEstadoVisualSaldo(saldo, totalIngresos, totalGastos) {
+    const banner = document.getElementById('alerta-saldo-banner');
+    const titulo = document.getElementById('alerta-saldo-titulo');
+    const desc = document.getElementById('alerta-saldo-desc');
+    const cardSaldo = document.getElementById('card-saldo-box');
+    const estadoSub = document.getElementById('dash-saldo-estado');
 
-// Meta recomendada: el estudiante debería ahorrar el 30% de lo que recibe
+    if (!banner || !cardSaldo) return;
+
+    if (saldo < 0) {
+        banner.style.display = 'flex';
+        banner.className = 'insufficient-balance-banner';
+        titulo.innerText = '⚠️ ¡Alerta de Saldo Insuficiente (En Negativo)!';
+        desc.innerText = `Tus gastos superaron tus ingresos por Bs. ${Math.abs(saldo).toFixed(2)}. Registra un nuevo ingreso o reduce tus gastos.`;
+        cardSaldo.classList.add('balance-insuficiente');
+        if (estadoSub) estadoSub.innerText = '⚠️ Saldo insuficiente (negativo)';
+    } else if (saldo === 0 && (totalIngresos > 0 || totalGastos > 0)) {
+        banner.style.display = 'flex';
+        banner.className = 'insufficient-balance-banner';
+        titulo.innerText = '⚠️ ¡Te quedaste sin Saldo Disponible (Bs. 0.00)!';
+        desc.innerText = 'Has agotado todo tu saldo disponible. Necesitas registrar un ingreso antes de realizar más gastos.';
+        cardSaldo.classList.add('balance-insuficiente');
+        if (estadoSub) estadoSub.innerText = '⚠️ Sin saldo disponible';
+    } else if (saldo > 0 && saldo <= 20 && totalIngresos > 0) {
+        banner.style.display = 'flex';
+        banner.className = 'insufficient-balance-banner low-balance-warning';
+        titulo.innerText = '⚠️ ¡Atención! Tu saldo está por agotarse';
+        desc.innerText = `Solo te quedan Bs. ${saldo.toFixed(2)} disponibles. Administra con cuidado tus próximos gastos.`;
+        cardSaldo.classList.remove('balance-insuficiente');
+        if (estadoSub) estadoSub.innerText = '⚡ Saldo bajo';
+    } else {
+        banner.style.display = 'none';
+        cardSaldo.classList.remove('balance-insuficiente');
+        if (estadoSub) estadoSub.innerText = saldo > 0 ? '✓ Saldo saludable' : 'Registra tu primer ingreso';
+    }
+}
+
+// Muestra el Modal interactivo de Alerta de Saldo Insuficiente cuando un gasto o abono supera el saldo
+function mostrarModalSaldoInsuficiente({ mensaje, saldoDisponible, montoSolicitado, faltante, onForzar }) {
+    const disp = Number(saldoDisponible ?? saldoGlobalDisponible);
+    const solic = Number(montoSolicitado || 0);
+    const falt = Number(faltante ?? (solic - Math.max(disp, 0)));
+
+    document.getElementById('modal-alerta-saldo-msg').innerText =
+        mensaje || `No cuentas con saldo suficiente para realizar este registro de Bs. ${solic.toFixed(2)}.`;
+    document.getElementById('alerta-val-disponible').innerText = `Bs. ${disp.toFixed(2)}`;
+    document.getElementById('alerta-val-solicitado').innerText = `Bs. ${solic.toFixed(2)}`;
+    document.getElementById('alerta-val-faltante').innerText = `Bs. ${Math.max(falt, 0).toFixed(2)}`;
+
+    pendingForceAction = onForzar || null;
+    const btnForzar = document.getElementById('btn-forzar-saldo-negativo');
+    if (btnForzar) {
+        btnForzar.style.display = onForzar ? 'inline-flex' : 'none';
+        btnForzar.onclick = async () => {
+            closeModal('modal-alerta-saldo');
+            if (typeof pendingForceAction === 'function') {
+                await pendingForceAction();
+                pendingForceAction = null;
+            }
+        };
+    }
+
+    showToast('⚠️ ¡Alerta! Saldo insuficiente para esta operación', 'danger');
+    openModal('modal-alerta-saldo');
+}
+
+// Conecta advertencias en tiempo real dentro de los formularios cuando el monto escrito supera el saldo
+function setupLiveBalanceWarnings() {
+    const pares = [
+        { input: 'gasto-monto', warn: 'gasto-inline-warning', label: 'Este gasto' },
+        { input: 'escolar-monto', warn: 'escolar-inline-warning', label: 'Este gasto escolar' },
+        { input: 'meta-ahorrado-inicial', warn: 'meta-inline-warning', label: 'Este monto inicial' },
+        { input: 'abonar-meta-monto', warn: 'abonar-inline-warning', label: 'Este abono' }
+    ];
+
+    pares.forEach(({ input, warn, label }) => {
+        const elInput = document.getElementById(input);
+        const elWarn = document.getElementById(warn);
+        if (!elInput || !elWarn) return;
+
+        elInput.addEventListener('input', () => {
+            const val = parseFloat(elInput.value);
+            if (!isNaN(val) && val > 0 && val > saldoGlobalDisponible) {
+                const faltante = val - Math.max(saldoGlobalDisponible, 0);
+                elWarn.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>¡Saldo insuficiente!</strong> ${label} (Bs. ${val.toFixed(2)}) supera tu saldo disponible actual (Bs. ${saldoGlobalDisponible.toFixed(2)}). Te faltan Bs. ${faltante.toFixed(2)}.`;
+                elWarn.style.display = 'block';
+            } else {
+                elWarn.style.display = 'none';
+            }
+        });
+    });
+}
+
+// =============================================================================
+// 5.1 MÓDULO DE METAS DE AHORRO PERSONAL Y PANEL DE TODAS LAS METAS (HISTORIAL)
+// =============================================================================
+const ICONOS_META = {
+    'Tecnología': 'fa-headphones-alt',
+    'Ropa y Calzado': 'fa-tshirt',
+    'Deporte': 'fa-futbol',
+    'Estudios': 'fa-graduation-cap',
+    'Videojuegos y Ocio': 'fa-gamepad',
+    'Regalo': 'fa-gift',
+    'Personal': 'fa-star'
+};
+
+let metasCache = { activas: [], historial: [] };
+
+async function loadMetas() {
+    const contActivas = document.getElementById('list-metas-activas');
+    const contHistorial = document.getElementById('list-metas-historial');
+    if (!contActivas || !contHistorial) return;
+
+    try {
+        const res = await fetch('/api/metas');
+        const data = await res.json();
+        metasCache = data;
+
+        const badge = document.getElementById('badge-resumen-metas');
+        if (badge && data.resumen) {
+            badge.innerText = `${data.resumen.metasCompletadas} de ${data.resumen.totalMetas} completadas`;
+        }
+
+        // 1. Renderizar Metas Activas en el Panel del Estudiante
+        if (!data.activas || data.activas.length === 0) {
+            contActivas.innerHTML = `
+                <div style="text-align:center; padding:18px; color:var(--text-secondary); border:1px dashed var(--border); border-radius:10px;">
+                    <i class="fas fa-piggy-bank" style="font-size:26px; color:var(--primary); margin-bottom:6px; display:block;"></i>
+                    <p style="font-size:13.5px;">No tienes metas de ahorro activas en este momento.</p>
+                    <small>¡Haz clic en <strong>"Nueva Meta"</strong> para poner lo que quieres comprarte y empezar a ahorrar!</small>
+                </div>
+            `;
+        } else {
+            contActivas.innerHTML = data.activas.map(m => {
+                const objetivo = parseFloat(m.monto_objetivo);
+                const ahorrado = parseFloat(m.monto_ahorrado);
+                const pct = objetivo > 0 ? Math.min((ahorrado / objetivo) * 100, 100) : 0;
+                const faltante = Math.max(objetivo - ahorrado, 0);
+                const completada = m.estado === 'completada' || ahorrado >= objetivo;
+                const icono = ICONOS_META[m.categoria] || 'fa-bullseye';
+
+                return `
+                    <div class="meta-card ${completada ? 'meta-completada' : ''}">
+                        <div class="meta-card-top">
+                            <div class="meta-title-group">
+                                <strong><i class="fas ${icono}"></i> ${escapeHtml(m.titulo)}</strong>
+                                <span class="meta-cat-badge">${escapeHtml(m.categoria || 'Personal')}</span>
+                            </div>
+                            <span class="meta-status-pill ${completada ? 'completada' : 'progreso'}">
+                                ${completada ? '🎉 ¡Completada!' : `${pct.toFixed(0)}% ahorrado`}
+                            </span>
+                        </div>
+
+                        <div class="meta-amounts-row">
+                            <span>Puesto: <strong>Bs. ${ahorrado.toFixed(2)}</strong> de <strong>Bs. ${objetivo.toFixed(2)}</strong></span>
+                            <span>${completada ? '¡Listo para comprar!' : `Faltan: Bs. ${faltante.toFixed(2)}`}</span>
+                        </div>
+
+                        <div class="meta-progress-track">
+                            <div class="meta-progress-fill" style="width: ${pct.toFixed(1)}%;"></div>
+                        </div>
+
+                        <div class="meta-actions-row">
+                            ${!completada ? `
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="openAbonarMetaModal(${m.id})">
+                                    <i class="fas fa-plus-circle"></i> Poner dinero
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="completarMeta(${m.id})" title="Marcar como completada">
+                                    <i class="fas fa-check"></i> Completar
+                                </button>
+                            ` : ''}
+                            <button type="button" class="btn ${completada ? 'btn-danger' : 'btn-outline-danger'} btn-sm" onclick="borrarMetaDelPanel(${m.id}, ${completada})">
+                                <i class="fas fa-trash-alt"></i> ${completada ? 'Borrar meta completada' : 'Quitar del panel'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 2. Renderizar el Panel de Todas las Metas que tuvo el Estudiante (Historial para el Reporte Mensual)
+        if (!data.historial || data.historial.length === 0) {
+            contHistorial.innerHTML = '<p style="text-align:center; color:var(--text-secondary); padding:14px;">Aún no has registrado ninguna meta de ahorro.</p>';
+        } else {
+            contHistorial.innerHTML = data.historial.map(m => {
+                const objetivo = parseFloat(m.monto_objetivo);
+                const ahorrado = parseFloat(m.monto_ahorrado);
+                const pct = objetivo > 0 ? Math.min((ahorrado / objetivo) * 100, 100) : 0;
+                const completada = m.estado === 'completada' || ahorrado >= objetivo;
+                const fechaStr = m.fecha_creacion ? new Date(m.fecha_creacion).toLocaleDateString() : '—';
+                const retiradaPanel = Number(m.visible_panel) === 0;
+
+                return `
+                    <div class="item-card">
+                        <div class="item-info">
+                            <strong>
+                                <i class="fas ${ICONOS_META[m.categoria] || 'fa-bullseye'}" style="color:var(--primary);"></i>
+                                ${escapeHtml(m.titulo)}
+                            </strong>
+                            <span>
+                                ${escapeHtml(m.categoria || 'Personal')} · Creada: ${fechaStr}
+                                ${retiradaPanel ? ' · <em>(Retirada de activas)</em>' : ''}
+                            </span>
+                            <span>Ahorrado: <strong>Bs. ${ahorrado.toFixed(2)}</strong> / Meta: <strong>Bs. ${objetivo.toFixed(2)}</strong> (${pct.toFixed(0)}%)</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="meta-status-pill ${completada ? 'completada' : 'progreso'}">
+                                ${completada ? '✓ Completada' : 'En progreso'}
+                            </span>
+                            <button class="btn-del" title="Eliminar definitivamente del historial" onclick="eliminarMetaDefinitivo(${m.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch (e) {
+        console.error("Error al cargar metas de ahorro:", e);
+    }
+}
+
+// Abre el modal para poner más dinero en una meta específica
+function openAbonarMetaModal(metaId) {
+    const meta = metasCache.activas.find(m => m.id === metaId) || metasCache.historial.find(m => m.id === metaId);
+    if (!meta) return;
+
+    document.getElementById('form-abonar-meta').reset();
+    document.getElementById('abonar-meta-id').value = meta.id;
+    document.getElementById('abonar-meta-nombre').innerText = `🎯 ${meta.titulo}`;
+    const faltante = Math.max(parseFloat(meta.monto_objetivo) - parseFloat(meta.monto_ahorrado), 0);
+    document.getElementById('abonar-meta-progreso-txt').innerText =
+        `Ahorrado: Bs. ${parseFloat(meta.monto_ahorrado).toFixed(2)} / Meta: Bs. ${parseFloat(meta.monto_objetivo).toFixed(2)} (Faltan Bs. ${faltante.toFixed(2)})`;
+
+    openModal('modal-abonar-meta');
+}
+
+// Marca una meta como completada
+async function completarMeta(id) {
+    const res = await fetch(`/api/metas/${id}/completar`, { method: 'PUT' });
+    if (res.ok) {
+        showToast('🎉 ¡Felicidades! Meta marcada como completada. Ya puedes borrarla del panel cuando quieras.', 'success');
+        loadMetas();
+        loadDashboard();
+    }
+}
+
+// Borra la meta del panel de metas activas (conservándola en el historial para el reporte mensual)
+async function borrarMetaDelPanel(id, esCompletada) {
+    const msg = esCompletada
+        ? '¿Deseas borrar esta meta completada de tu panel activo?\n\nQuedará guardada en tu panel de "Todas las Metas" para tu Reporte Mensual.'
+        : '¿Deseas retirar esta meta de tu panel de metas activas?';
+    if (!confirm(msg)) return;
+
+    const res = await fetch(`/api/metas/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+        showToast('Meta borrada del panel activo (guardada en el historial para tu reporte mensual)', 'success');
+        loadMetas();
+        loadDashboard();
+    }
+}
+
+// Elimina definitivamente una meta del historial
+async function eliminarMetaDefinitivo(id) {
+    if (!confirm('¿Eliminar definitivamente esta meta incluso del historial y del reporte mensual?')) return;
+    const res = await fetch(`/api/metas/${id}?definitivo=1`, { method: 'DELETE' });
+    if (res.ok) {
+        showToast('Meta eliminada definitivamente', 'primary');
+        loadMetas();
+        loadDashboard();
+    }
+}
+
+// =============================================================================
+// 5.2 CONFIGURACIÓN DE DIAGNÓSTICO (PRESUPUESTO Y AHORRO) PARA REPORTES
+// =============================================================================
 const META_AHORRO_PCT = 30;
 
-// Mensajes educativos para el semáforo del presupuesto
 const ESTADOS_PRESUPUESTO = {
     verde: {
         titulo: '🟢 ¡Vas muy bien!',
@@ -333,7 +715,6 @@ const ESTADOS_PRESUPUESTO = {
     }
 };
 
-// Mensajes motivacionales para la meta de ahorro
 const ESTADOS_AHORRO = {
     verde: {
         titulo: '💰 ¡Meta cumplida o vas por buen camino!',
@@ -349,7 +730,6 @@ const ESTADOS_AHORRO = {
     }
 };
 
-// Función auxiliar para actualizar tarjetas de estado (franjas de diagnóstico)
 function setStatusStrip(id, color, titulo, mensaje) {
     const strip = document.getElementById(id);
     if (!strip) return;
@@ -360,7 +740,6 @@ function setStatusStrip(id, color, titulo, mensaje) {
     if (m) m.innerText = mensaje;
 }
 
-// Alias para las tarjetas de diagnóstico dentro de la pestaña de Reportes
 function setReportStatusCard(id, color, titulo, mensaje) {
     const strip = document.getElementById(id);
     if (!strip) return;
@@ -374,8 +753,6 @@ function setReportStatusCard(id, color, titulo, mensaje) {
 // =============================================================================
 // 6. MÓDULO DE INGRESOS (DINERO RECIBIDO)
 // =============================================================================
-
-// Consulta la lista de todos los ingresos del estudiante y los dibuja en la pantalla
 async function loadIngresos() {
     const cont = document.getElementById('list-ingresos');
     cont.innerHTML = '<p>Cargando ingresos...</p>';
@@ -388,7 +765,6 @@ async function loadIngresos() {
         return;
     }
 
-    // Dibuja una tarjeta por cada ingreso con su botón para borrar
     cont.innerHTML = data.map(i => `
         <div class="item-card">
             <div class="item-info">
@@ -405,19 +781,17 @@ async function loadIngresos() {
     `).join('');
 }
 
-// Pide confirmación al estudiante y borra el ingreso seleccionado
 async function deleteIngreso(id) {
     if (!confirm('¿Deseas eliminar este ingreso?')) return;
     await fetch(`/api/ingresos/${id}`, { method: 'DELETE' });
-    loadIngresos();   // Refresca la lista
-    loadDashboard();  // Actualiza los balances
+    showToast('Ingreso eliminado', 'primary');
+    loadIngresos();
+    loadDashboard();
 }
 
 // =============================================================================
-// 7. MÓDULO DE GASTOS (DINERO UTILIZADO)
+// 7. MÓDULO DE GASTOS GENERALES
 // =============================================================================
-
-// Consulta la lista de todos los gastos del estudiante y los dibuja
 async function loadGastos() {
     const cont = document.getElementById('list-gastos');
     cont.innerHTML = '<p>Cargando gastos...</p>';
@@ -430,7 +804,6 @@ async function loadGastos() {
         return;
     }
 
-    // Dibuja una tarjeta por cada gasto
     cont.innerHTML = data.map(g => `
         <div class="item-card">
             <div class="item-info">
@@ -447,15 +820,14 @@ async function loadGastos() {
     `).join('');
 }
 
-// Pide confirmación y elimina un gasto registrado
 async function deleteGasto(id) {
     if (!confirm('¿Deseas eliminar este gasto?')) return;
     await fetch(`/api/gastos/${id}`, { method: 'DELETE' });
-    loadGastos();     // Refresca la lista
-    loadDashboard();  // Actualiza los balances
+    showToast('Gasto eliminado', 'primary');
+    loadGastos();
+    loadDashboard();
 }
 
-// Llena la lista desplegable del formulario con las categorías (Alimentación, Transporte, etc.)
 async function loadCategoriasSelect() {
     const select = document.getElementById('gasto-categoria');
     if (!select) return;
@@ -465,22 +837,271 @@ async function loadCategoriasSelect() {
 }
 
 // =============================================================================
-// 8. MÓDULO DE REPORTES Y GRÁFICOS (FILTROS Y TORTAS DE DIAGNÓSTICO)
+// 7.1 MÓDULO DE CALENDARIO ESCOLAR (GASTOS EXCLUSIVOS EN EL COLEGIO)
 // =============================================================================
+function getMesCalendarioActualStr() {
+    const pad = n => String(n).padStart(2, '0');
+    return `${calendarState.year}-${pad(calendarState.month + 1)}`;
+}
 
-// Estado actual del filtro seleccionado en Reportes (por defecto arranca en el mes actual)
+function cambiarMesCalendario(delta) {
+    calendarState.month += delta;
+    if (calendarState.month < 0) {
+        calendarState.month = 11;
+        calendarState.year -= 1;
+    } else if (calendarState.month > 11) {
+        calendarState.month = 0;
+        calendarState.year += 1;
+    }
+    const pad = n => String(n).padStart(2, '0');
+    calendarState.selectedDate = `${calendarState.year}-${pad(calendarState.month + 1)}-01`;
+    loadCalendarioEscolar();
+}
+
+function irAHoyCalendario() {
+    const ahora = new Date();
+    calendarState.year = ahora.getFullYear();
+    calendarState.month = ahora.getMonth();
+    calendarState.selectedDate = ahora.toISOString().split('T')[0];
+    loadCalendarioEscolar();
+}
+
+function openGastoEscolarModal(fechaPreseleccionada) {
+    const inputFecha = document.getElementById('escolar-fecha');
+    if (inputFecha) {
+        inputFecha.value = fechaPreseleccionada || calendarState.selectedDate || new Date().toISOString().split('T')[0];
+    }
+    openModal('modal-gasto-escolar');
+}
+
+async function loadCalendarioEscolar() {
+    const mesStr = getMesCalendarioActualStr();
+    const labelMes = document.getElementById('calendar-month-label');
+    if (labelMes) {
+        labelMes.innerText = `${NOMBRES_MESES[calendarState.month]} ${calendarState.year}`;
+    }
+
+    try {
+        const res = await fetch(`/api/calendario-escolar?mes=${mesStr}`);
+        const data = await res.json();
+
+        calendarState.gastosMes = data.gastos || [];
+        calendarState.porTipo = data.porTipo || [];
+        calendarState.totalMes = Number(data.totalMes || 0);
+
+        document.getElementById('cal-total-mes').innerText = `Bs. ${calendarState.totalMes.toFixed(2)}`;
+        const cant = calendarState.gastosMes.length;
+        document.getElementById('cal-count-mes').innerText = `${cant} registro${cant === 1 ? '' : 's'}`;
+
+        renderCalendarGrid();
+        renderGastosEscolaresDia(calendarState.selectedDate);
+        renderGastosEscolaresMes();
+        renderSchoolCalendarChart(calendarState.porTipo);
+    } catch (e) {
+        console.error("Error al cargar el calendario escolar:", e);
+    }
+}
+
+function normalizarFechaISO(fechaRaw) {
+    if (!fechaRaw) return '';
+    return String(fechaRaw).split('T')[0];
+}
+
+function renderCalendarGrid() {
+    const grid = document.getElementById('calendar-grid');
+    if (!grid) return;
+
+    const year = calendarState.year;
+    const month = calendarState.month;
+
+    // Primer día del mes (0=Dom, 1=Lun ... 6=Sáb) -> convertimos para que Lunes sea 0
+    const firstDayJS = new Date(year, month, 1).getDay();
+    const startOffset = (firstDayJS === 0 ? 6 : firstDayJS - 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Agrupamos el monto gastado en el colegio por cada fecha 'YYYY-MM-DD'
+    const gastosPorDia = {};
+    calendarState.gastosMes.forEach(g => {
+        const f = normalizarFechaISO(g.fecha);
+        gastosPorDia[f] = (gastosPorDia[f] || 0) + parseFloat(g.monto);
+    });
+
+    const pad = n => String(n).padStart(2, '0');
+    const celdas = [];
+
+    for (let i = 0; i < startOffset; i++) {
+        celdas.push('<div class="cal-day-cell empty-cell"></div>');
+    }
+
+    for (let dia = 1; dia <= daysInMonth; dia++) {
+        const fechaISO = `${year}-${pad(month + 1)}-${pad(dia)}`;
+        const totalDia = gastosPorDia[fechaISO] || 0;
+        const esHoy = fechaISO === hoyISO;
+        const esSeleccionado = fechaISO === calendarState.selectedDate;
+
+        celdas.push(`
+            <div class="cal-day-cell ${esHoy ? 'is-today' : ''} ${esSeleccionado ? 'is-selected' : ''}"
+                 onclick="seleccionarDiaCalendario('${fechaISO}')">
+                <span class="cal-day-num">${dia}</span>
+                ${totalDia > 0 ? `<span class="cal-day-badge">Bs.${totalDia.toFixed(0)}</span>` : '<span></span>'}
+            </div>
+        `);
+    }
+
+    grid.innerHTML = celdas.join('');
+}
+
+function seleccionarDiaCalendario(fechaISO) {
+    calendarState.selectedDate = fechaISO;
+    renderCalendarGrid();
+    renderGastosEscolaresDia(fechaISO);
+}
+
+function renderGastosEscolaresDia(fechaISO) {
+    const partes = (fechaISO || hoyISO).split('-');
+    const fechaLegible = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : fechaISO;
+
+    const lblSel = document.getElementById('cal-selected-label');
+    if (lblSel) lblSel.innerText = fechaLegible;
+
+    const titleEl = document.getElementById('cal-day-detail-title');
+    if (titleEl) {
+        titleEl.innerHTML = `<i class="fas fa-clipboard-list"></i> Gastos en el Colegio del ${fechaLegible}`;
+    }
+
+    const cont = document.getElementById('list-gastos-escolares-dia');
+    if (!cont) return;
+
+    const delDia = calendarState.gastosMes.filter(g => normalizarFechaISO(g.fecha) === fechaISO);
+
+    if (delDia.length === 0) {
+        cont.innerHTML = `
+            <p style="text-align:center; color:var(--text-secondary); padding:14px; font-size:13px;">
+                No hay gastos escolares anotados el <strong>${fechaLegible}</strong>.
+            </p>
+        `;
+        return;
+    }
+
+    cont.innerHTML = delDia.map(g => `
+        <div class="item-card">
+            <div class="item-info">
+                <strong><i class="fas fa-school" style="color:var(--accent);"></i> ${escapeHtml(g.tipo)}</strong>
+                <span>${escapeHtml(g.descripcion || 'Gasto en el colegio')}</span>
+            </div>
+            <div style="display:flex; align-items:center;">
+                <span class="item-amount exp">- Bs. ${parseFloat(g.monto).toFixed(2)}</span>
+                <button class="btn-del" title="Eliminar gasto escolar" onclick="deleteGastoEscolar(${g.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderGastosEscolaresMes() {
+    const cont = document.getElementById('list-gastos-escolares-mes');
+    if (!cont) return;
+
+    if (calendarState.gastosMes.length === 0) {
+        cont.innerHTML = '<p style="text-align:center; color:var(--text-secondary); padding:14px;">No hay gastos del colegio registrados en este mes.</p>';
+        return;
+    }
+
+    cont.innerHTML = calendarState.gastosMes.map(g => {
+        const f = normalizarFechaISO(g.fecha).split('-');
+        const fStr = f.length === 3 ? `${f[2]}/${f[1]}/${f[0]}` : g.fecha;
+        return `
+            <div class="item-card">
+                <div class="item-info">
+                    <strong>${escapeHtml(g.tipo)}</strong>
+                    <span>📅 ${fStr} — ${escapeHtml(g.descripcion || 'Sin detalle')}</span>
+                </div>
+                <div style="display:flex; align-items:center;">
+                    <span class="item-amount exp">- Bs. ${parseFloat(g.monto).toFixed(2)}</span>
+                    <button class="btn-del" title="Eliminar" onclick="deleteGastoEscolar(${g.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function deleteGastoEscolar(id) {
+    if (!confirm('¿Deseas eliminar este gasto del calendario escolar?')) return;
+    await fetch(`/api/calendario-escolar/${id}`, { method: 'DELETE' });
+    showToast('Gasto escolar eliminado', 'primary');
+    loadCalendarioEscolar();
+    loadDashboard();
+}
+
+// Gráfico animado del Calendario Escolar (Distribución de gastos del colegio por tipo)
+function renderSchoolCalendarChart(porTipo) {
+    if (schoolCalendarChartInstance) {
+        schoolCalendarChartInstance.destroy();
+        schoolCalendarChartInstance = null;
+    }
+
+    const ctx = document.getElementById('schoolCalendarChart')?.getContext('2d');
+    if (!ctx) return;
+
+    const { textColor, gridColor } = getChartThemeColors();
+    const hayDatos = porTipo && porTipo.length > 0;
+    const labels = hayDatos ? porTipo.map(item => item.tipo) : ['Sin gastos escolares este mes'];
+    const valores = hayDatos ? porTipo.map(item => parseFloat(item.total)) : [0];
+    const colores = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'];
+
+    schoolCalendarChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Gasto Escolar (Bs.)',
+                data: valores,
+                backgroundColor: hayDatos ? colores.slice(0, valores.length) : ['#cbd5e1'],
+                borderRadius: 8,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 1100,
+                easing: 'easeOutQuart'
+            },
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    ticks: { color: textColor, font: { size: 11 } },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: textColor, font: { size: 11 } },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
+}
+
+// =============================================================================
+// 8. MÓDULO DE REPORTES, GRÁFICOS ANIMADOS Y REPORTE MENSUAL IMPRIMIBLE
+// =============================================================================
 let reportFilter = {
-    periodo: 'mes', // Opciones posibles: 'dia', 'semana', 'mes', 'todo'
+    periodo: 'mes',
     fecha: new Date().toISOString().split('T')[0],
     mes: new Date().toISOString().substring(0, 7)
 };
 
-// Calcula con precisión qué día es lunes (inicio de semana) y qué día es domingo (fin de semana)
-// para cualquier fecha que el estudiante elija
 function getWeekRange(dateStr) {
     const parts = (dateStr || new Date().toISOString().split('T')[0]).split('-');
     const base = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-    const day = base.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+    const day = base.getDay();
     const diffToMonday = (day === 0 ? -6 : 1) - day;
     const monday = new Date(base);
     monday.setDate(base.getDate() + diffToMonday);
@@ -498,20 +1119,17 @@ function getWeekRange(dateStr) {
     };
 }
 
-// Configura los eventos al hacer clic en los botones de filtro y en los selectores de fecha
 function setupReportFilters() {
     const fechaInput = document.getElementById('report-filter-fecha');
     const semanaInput = document.getElementById('report-filter-semana-fecha');
     const mesInput = document.getElementById('report-filter-mes');
 
-    // Inicializamos los campos con las fechas actuales
     if (fechaInput) fechaInput.value = reportFilter.fecha;
     if (semanaInput) semanaInput.value = reportFilter.fecha;
     if (mesInput) mesInput.value = reportFilter.mes;
 
     updateSemanaTexto();
 
-    // Cuando el usuario cambia el día en el selector de calendario:
     fechaInput?.addEventListener('change', (e) => {
         if (e.target.value) {
             reportFilter.fecha = e.target.value;
@@ -519,7 +1137,6 @@ function setupReportFilters() {
         }
     });
 
-    // Cuando el usuario cambia la fecha para consultar otra semana:
     semanaInput?.addEventListener('change', (e) => {
         if (e.target.value) {
             reportFilter.fecha = e.target.value;
@@ -528,7 +1145,6 @@ function setupReportFilters() {
         }
     });
 
-    // Cuando el usuario cambia el mes:
     mesInput?.addEventListener('change', (e) => {
         if (e.target.value) {
             reportFilter.mes = e.target.value;
@@ -536,7 +1152,6 @@ function setupReportFilters() {
         }
     });
 
-    // Evento de clic en los botones píldora (Día, Semanal, Mes, Todo):
     document.querySelectorAll('.filter-pill').forEach(btn => {
         btn.addEventListener('click', () => {
             const periodo = btn.getAttribute('data-period');
@@ -545,7 +1160,6 @@ function setupReportFilters() {
     });
 }
 
-// Muestra en pantalla el texto de la semana (ejemplo: "12/10/2026 al 18/10/2026")
 function updateSemanaTexto() {
     const range = getWeekRange(reportFilter.fecha);
     const textoEl = document.getElementById('semana-rango-texto');
@@ -554,16 +1168,13 @@ function updateSemanaTexto() {
     }
 }
 
-// Cambia el período activo y muestra los controles necesarios (ocultando los que no correspondan)
 function setReportPeriodo(periodo) {
     reportFilter.periodo = periodo;
 
-    // Resalta visualmente el botón seleccionado
     document.querySelectorAll('.filter-pill').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-period') === periodo);
     });
 
-    // Muestra u oculta los campos de entrada según el período
     const controlDia = document.getElementById('filter-control-dia');
     const controlSemana = document.getElementById('filter-control-semana');
     const controlMes = document.getElementById('filter-control-mes');
@@ -578,13 +1189,18 @@ function setReportPeriodo(periodo) {
         updateSemanaTexto();
     }
 
-    // Vuelve a consultar los datos y redibuja los gráficos con el nuevo filtro
     loadReportes();
 }
 
-// Consulta al servidor los datos filtrados y actualiza números y las 3 gráficas circulares
+function formatearMesLegible(mesYYYYMM) {
+    const partes = (mesYYYYMM || '').split('-');
+    if (partes.length !== 2) return mesYYYYMM;
+    const anio = partes[0];
+    const mesIdx = parseInt(partes[1], 10) - 1;
+    return `${NOMBRES_MESES[mesIdx] || partes[1]} de ${anio}`;
+}
+
 async function loadReportes() {
-    // Preparamos los parámetros que le enviaremos al backend en la URL
     const params = new URLSearchParams();
     params.set('periodo', reportFilter.periodo);
 
@@ -600,87 +1216,216 @@ async function loadReportes() {
     }
 
     const queryString = params.toString();
+    const mesParaHoja = reportFilter.mes || new Date().toISOString().substring(0, 7);
 
     try {
-        // Pedimos en paralelo el resumen financiero y la división por categorías
-        const [resResumen, resCat] = await Promise.all([
+        const [resResumen, resCat, resMensual] = await Promise.all([
             fetch(`/api/resumen?${queryString}`),
-            fetch(`/api/reportes/categorias?${queryString}`)
+            fetch(`/api/reportes/categorias?${queryString}`),
+            fetch(`/api/reportes/mensual?mes=${mesParaHoja}`)
         ]);
         const resumen = await resResumen.json();
         const categorias = await resCat.json();
+        const mensual = await resMensual.json();
 
-        // Mostramos los totales calculados en la parte superior del reporte
         document.getElementById('rep-ingresos').innerText = `Bs. ${resumen.totalIngresos.toFixed(2)}`;
         document.getElementById('rep-gastos').innerText = `Bs. ${resumen.totalGastos.toFixed(2)}`;
+        const repEsc = document.getElementById('rep-gastos-escolares');
+        if (repEsc) repEsc.innerText = `Bs. ${(resumen.totalGastosEscolares || 0).toFixed(2)}`;
         document.getElementById('rep-saldo').innerText = `Bs. ${resumen.saldoDisponible.toFixed(2)}`;
 
-        // 1. Dibuja la Torta de Estado de Presupuesto con su tarjeta de diagnóstico
+        // 1. Dibuja la Torta Animada de Estado de Presupuesto
         renderBudgetChart(resumen);
 
-        // 2. Dibuja la Torta de Meta de Ahorro con su tarjeta motivacional
+        // 2. Dibuja la Torta Animada de Meta de Ahorro (30%)
         renderSavingsChart(resumen);
 
-        // 3. Dibuja la Torta de Gastos por Categoría y llena la tabla de detalle
+        // 3. Dibuja la Dona Animada de Gastos por Categoría
         renderCategoryChart(categorias, resumen.totalGastos);
+
+        // 4. Llena el Reporte Mensual Completo Imprimible
+        renderReporteMensualImprimible(mensual);
     } catch (e) {
         console.error("Error al cargar reportes:", e);
     }
 }
 
+// Llena todas las tablas del Reporte Mensual Completo (para ver en pantalla e imprimir)
+function renderReporteMensualImprimible(mensual) {
+    if (!mensual) return;
+    const mesLegible = formatearMesLegible(mensual.mes);
+
+    // Encabezado de impresión
+    const elTituloHoja = document.getElementById('sheet-mes-titulo');
+    if (elTituloHoja) elTituloHoja.innerText = mesLegible;
+
+    const elSubPrint = document.getElementById('print-subtitle-mes');
+    if (elSubPrint) elSubPrint.innerText = `Período del Reporte Mensual: ${mesLegible}`;
+
+    if (mensual.estudiante) {
+        document.getElementById('print-est-nombre').innerText = mensual.estudiante.nombre || '—';
+        document.getElementById('print-est-usuario').innerText = `@${mensual.estudiante.usuario || '—'}`;
+        document.getElementById('print-est-curso').innerText = mensual.estudiante.curso || 'Estudiante';
+    }
+    document.getElementById('print-fecha-emision').innerText = new Date().toLocaleString();
+
+    // 1. Tabla de Ingresos del Mes
+    const tbodyIng = document.getElementById('rep-mensual-ingresos-body');
+    if (tbodyIng) {
+        if (!mensual.ingresos || mensual.ingresos.length === 0) {
+            tbodyIng.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">No se registraron ingresos en este mes.</td></tr>';
+        } else {
+            tbodyIng.innerHTML = mensual.ingresos.map(i => `
+                <tr>
+                    <td>${new Date(i.fecha).toLocaleDateString()}</td>
+                    <td><strong>${escapeHtml(i.fuente)}</strong></td>
+                    <td>${escapeHtml(i.descripcion || '—')}</td>
+                    <td class="text-green"><strong>+ Bs. ${parseFloat(i.monto).toFixed(2)}</strong></td>
+                </tr>
+            `).join('') + `
+                <tr>
+                    <td colspan="3" style="text-align:right;"><strong>Total Ingresos del Mes:</strong></td>
+                    <td class="text-green"><strong>Bs. ${mensual.resumen.totalIngresos.toFixed(2)}</strong></td>
+                </tr>
+            `;
+        }
+    }
+
+    // 2. Tabla de Gastos Generales del Mes
+    const tbodyGas = document.getElementById('rep-mensual-gastos-body');
+    if (tbodyGas) {
+        if (!mensual.gastos || mensual.gastos.length === 0) {
+            tbodyGas.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">No se registraron gastos generales en este mes.</td></tr>';
+        } else {
+            tbodyGas.innerHTML = mensual.gastos.map(g => `
+                <tr>
+                    <td>${new Date(g.fecha).toLocaleDateString()}</td>
+                    <td><strong>${escapeHtml(g.categoria)}</strong></td>
+                    <td>${escapeHtml(g.descripcion || '—')}</td>
+                    <td class="text-red"><strong>- Bs. ${parseFloat(g.monto).toFixed(2)}</strong></td>
+                </tr>
+            `).join('') + `
+                <tr>
+                    <td colspan="3" style="text-align:right;"><strong>Total Gastos Generales del Mes:</strong></td>
+                    <td class="text-red"><strong>Bs. ${mensual.resumen.totalGastosGenerales.toFixed(2)}</strong></td>
+                </tr>
+            `;
+        }
+    }
+
+    // 3. Tabla de Calendario Escolar (Gastos en el Colegio) del Mes
+    const tbodyEsc = document.getElementById('rep-mensual-escolares-body');
+    if (tbodyEsc) {
+        if (!mensual.gastosEscolares || mensual.gastosEscolares.length === 0) {
+            tbodyEsc.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">No se registraron gastos en el Calendario Escolar en este mes.</td></tr>';
+        } else {
+            tbodyEsc.innerHTML = mensual.gastosEscolares.map(ge => `
+                <tr>
+                    <td>${new Date(ge.fecha).toLocaleDateString()}</td>
+                    <td><strong>${escapeHtml(ge.tipo)}</strong></td>
+                    <td>${escapeHtml(ge.descripcion || '—')}</td>
+                    <td class="text-red"><strong>- Bs. ${parseFloat(ge.monto).toFixed(2)}</strong></td>
+                </tr>
+            `).join('') + `
+                <tr>
+                    <td colspan="3" style="text-align:right;"><strong>Total Gastos en el Colegio del Mes:</strong></td>
+                    <td class="text-red"><strong>Bs. ${mensual.resumen.totalGastosEscolares.toFixed(2)}</strong></td>
+                </tr>
+            `;
+        }
+    }
+
+    // 4. Tabla de Todas las Metas de Ahorro del Estudiante
+    const tbodyMetas = document.getElementById('rep-mensual-metas-body');
+    if (tbodyMetas) {
+        if (!mensual.metas || mensual.metas.length === 0) {
+            tbodyMetas.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">El estudiante aún no registró metas de ahorro.</td></tr>';
+        } else {
+            tbodyMetas.innerHTML = mensual.metas.map(m => {
+                const obj = parseFloat(m.monto_objetivo);
+                const aho = parseFloat(m.monto_ahorrado);
+                const pct = obj > 0 ? Math.min((aho / obj) * 100, 100).toFixed(0) : '0';
+                const comp = m.estado === 'completada' || aho >= obj;
+                return `
+                    <tr>
+                        <td><strong>${escapeHtml(m.titulo)}</strong></td>
+                        <td>${escapeHtml(m.categoria || 'Personal')}</td>
+                        <td>Bs. ${obj.toFixed(2)}</td>
+                        <td>Bs. ${aho.toFixed(2)}</td>
+                        <td><strong>${pct}%</strong></td>
+                        <td>${comp ? '✅ Completada' : '⏳ En progreso'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+}
+
+// Lleva directamente a la pestaña de Reportes en modo Mensual listo para imprimir
+function irAReporteMensualImprimible() {
+    activateTab('tab-reportes');
+    setReportPeriodo('mes');
+    setTimeout(() => {
+        document.getElementById('monthly-printable-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 250);
+}
+
+// Dispara la impresión del Reporte Mensual Completo del Estudiante
+async function imprimirReporteMensual() {
+    if (reportFilter.periodo !== 'mes') {
+        setReportPeriodo('mes');
+    }
+    await loadReportes();
+    document.getElementById('print-fecha-emision').innerText = new Date().toLocaleString();
+    setTimeout(() => {
+        window.print();
+    }, 300);
+}
+
 // -----------------------------------------------------------------------------
-// GRÁFICO 1: ESTADO DEL PRESUPUESTO (TORTA)
+// GRÁFICO 1: ESTADO DEL PRESUPUESTO (TORTA ANIMADA)
 // -----------------------------------------------------------------------------
-// Muestra cuánto dinero se gastó en relación con el presupuesto total (ingresos).
 function renderBudgetChart({ totalIngresos, totalGastos, saldoDisponible }) {
     if (budgetChartInstance) {
-        budgetChartInstance.destroy(); // Destruimos el gráfico anterior
+        budgetChartInstance.destroy();
         budgetChartInstance = null;
     }
 
     const ctx = document.getElementById('budgetChart')?.getContext('2d');
     if (!ctx) return;
 
+    const { textColor, borderColor } = getChartThemeColors();
     let labels = [];
     let data = [];
     let bgColors = [];
 
-    // CASO A: No hay movimientos en este período
     if (totalIngresos <= 0 && totalGastos <= 0) {
         labels = ['Sin registros en este período'];
         data = [1];
         bgColors = ['#cbd5e1'];
         setReportStatusCard('report-status-presupuesto', 'neutral', 'Presupuesto:', 'No hay registros de ingresos ni gastos en este período.');
-    }
-    // CASO B: Hubo gastos pero ningún ingreso registrado
-    else if (totalIngresos <= 0 && totalGastos > 0) {
+    } else if (totalIngresos <= 0 && totalGastos > 0) {
         labels = [`Gastado (Bs. ${totalGastos.toFixed(2)})`];
         data = [totalGastos];
         bgColors = ['#ef4444'];
         setReportStatusCard('report-status-presupuesto', 'rojo', '🔴 ¡Superaste tu límite!', `Tienes gastos de Bs. ${totalGastos.toFixed(2)} pero ningún ingreso registrado en este período.`);
-    }
-    // CASO C: Hay ingresos normales registrados
-    else {
+    } else {
         const pctGastado = (totalGastos / totalIngresos) * 100;
-        // Semáforo: Verde si gastó menos del 70%, Amarillo entre 70% y 100%, Rojo si superó el 100%
         const colorPresupuesto = pctGastado < 70 ? 'verde' : pctGastado <= 100 ? 'amarillo' : 'rojo';
         const estadoP = ESTADOS_PRESUPUESTO[colorPresupuesto];
 
         if (totalGastos <= totalIngresos) {
-            // El gasto está dentro del límite: mostramos lo gastado y lo que aún queda disponible
             labels = [`Gastado: Bs. ${totalGastos.toFixed(2)}`, `Disponible: Bs. ${saldoDisponible.toFixed(2)}`];
             data = [totalGastos, saldoDisponible];
             const sliceColor = colorPresupuesto === 'verde' ? '#3b82f6' : (colorPresupuesto === 'amarillo' ? '#f59e0b' : '#ef4444');
             bgColors = [sliceColor, '#10b981'];
         } else {
-            // Se pasó de su presupuesto: mostramos la parte cubierta y el excedente en rojo
             const excedido = totalGastos - totalIngresos;
             labels = [`Presupuesto: Bs. ${totalIngresos.toFixed(2)}`, `Excedido: Bs. ${excedido.toFixed(2)}`];
             data = [totalIngresos, excedido];
             bgColors = ['#f59e0b', '#ef4444'];
         }
 
-        // Mostramos el diagnóstico descriptivo en la tarjeta
         setReportStatusCard(
             'report-status-presupuesto',
             colorPresupuesto,
@@ -689,7 +1434,6 @@ function renderBudgetChart({ totalIngresos, totalGastos, saldoDisponible }) {
         );
     }
 
-    // Dibujamos el gráfico circular tipo 'pie'
     budgetChartInstance = new Chart(ctx, {
         type: 'pie',
         data: {
@@ -698,23 +1442,28 @@ function renderBudgetChart({ totalIngresos, totalGastos, saldoDisponible }) {
                 data,
                 backgroundColor: bgColors,
                 borderWidth: 2,
-                borderColor: '#ffffff'
+                borderColor
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 1100,
+                easing: 'easeOutQuart'
+            },
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, font: { size: 11 } } }
             }
         }
     });
 }
 
 // -----------------------------------------------------------------------------
-// GRÁFICO 2: META DE AHORRO (TORTA)
+// GRÁFICO 2: META DE AHORRO 30% (TORTA ANIMADA)
 // -----------------------------------------------------------------------------
-// Evalúa si el estudiante logró retener como saldo al menos el 30% de sus ingresos.
 function renderSavingsChart({ totalIngresos, totalGastos, saldoDisponible }) {
     if (savingsChartInstance) {
         savingsChartInstance.destroy();
@@ -724,6 +1473,7 @@ function renderSavingsChart({ totalIngresos, totalGastos, saldoDisponible }) {
     const ctx = document.getElementById('savingsChart')?.getContext('2d');
     if (!ctx) return;
 
+    const { textColor, borderColor } = getChartThemeColors();
     let labels = [];
     let data = [];
     let bgColors = [];
@@ -734,15 +1484,12 @@ function renderSavingsChart({ totalIngresos, totalGastos, saldoDisponible }) {
         bgColors = ['#cbd5e1'];
         setReportStatusCard('report-status-ahorro', 'neutral', 'Ahorro:', `Tu meta es ahorrar el ${META_AHORRO_PCT}% de tus ingresos. Registra ingresos en este período.`);
     } else {
-        // La meta monetaria en Bolivianos es el 30% de los ingresos totales
         const metaMonto = totalIngresos * (META_AHORRO_PCT / 100);
         const pctAhorro = (saldoDisponible / totalIngresos) * 100;
-        // Verde si ahorró 30% o más, amarillo si ahorró algo pero menos de 30%, rojo si no ahorró nada
         const colorAhorro = pctAhorro >= META_AHORRO_PCT ? 'verde' : pctAhorro > 0 ? 'amarillo' : 'rojo';
         const estadoA = ESTADOS_AHORRO[colorAhorro];
 
         if (saldoDisponible >= metaMonto) {
-            // Cumplió la meta: mostramos la porción de la meta y el ahorro extra conseguido
             const extra = saldoDisponible - metaMonto;
             if (extra > 0) {
                 labels = [`Meta 30% cumplida: Bs. ${metaMonto.toFixed(2)}`, `Ahorro adicional: Bs. ${extra.toFixed(2)}`];
@@ -754,13 +1501,11 @@ function renderSavingsChart({ totalIngresos, totalGastos, saldoDisponible }) {
                 bgColors = ['#10b981'];
             }
         } else if (saldoDisponible > 0) {
-            // Tiene ahorros pero aún no llega a la meta del 30%: mostramos lo que tiene y lo que le falta
             const faltante = metaMonto - saldoDisponible;
             labels = [`Ahorro actual: Bs. ${saldoDisponible.toFixed(2)}`, `Faltante para meta: Bs. ${faltante.toFixed(2)}`];
             data = [saldoDisponible, faltante];
             bgColors = ['#3b82f6', '#fcd34d'];
         } else {
-            // No ahorró nada (gastó todo o quedó en saldo negativo)
             labels = [`Meta sugerida 30%: Bs. ${metaMonto.toFixed(2)}`, 'Sin ahorro en el período'];
             data = [metaMonto, 0.0001];
             bgColors = ['#ef4444', '#f1f5f9'];
@@ -782,21 +1527,27 @@ function renderSavingsChart({ totalIngresos, totalGastos, saldoDisponible }) {
                 data,
                 backgroundColor: bgColors,
                 borderWidth: 2,
-                borderColor: '#ffffff'
+                borderColor
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 1100,
+                easing: 'easeOutQuart'
+            },
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, font: { size: 11 } } }
             }
         }
     });
 }
 
 // -----------------------------------------------------------------------------
-// GRÁFICO 3: GASTOS POR CATEGORÍA (DONA) Y TABLA DE DETALLE
+// GRÁFICO 3: GASTOS POR CATEGORÍA (DONA ANIMADA) Y TABLA DE DETALLE
 // -----------------------------------------------------------------------------
 function renderCategoryChart(categorias, totalGastos) {
     if (categoryChartInstance) {
@@ -804,7 +1555,6 @@ function renderCategoryChart(categorias, totalGastos) {
         categoryChartInstance = null;
     }
 
-    // 1. Llenamos la tabla HTML con cada categoría, monto y porcentaje
     const tbody = document.getElementById('report-table-body');
     if (!categorias || categorias.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:15px;">No hay gastos registrados en este período.</td></tr>';
@@ -823,17 +1573,16 @@ function renderCategoryChart(categorias, totalGastos) {
         }).join('');
     }
 
-    // 2. Dibujamos el gráfico circular tipo 'doughnut' (dona)
     const ctx = document.getElementById('categoryChart')?.getContext('2d');
     if (!ctx) return;
 
+    const { textColor, borderColor } = getChartThemeColors();
     const labels = (categorias && categorias.length > 0)
         ? categorias.map(c => `${c.categoria} (Bs. ${parseFloat(c.total).toFixed(2)})`)
         : ['Sin gastos'];
     const data = (categorias && categorias.length > 0)
         ? categorias.map(c => parseFloat(c.total))
         : [1];
-    // Paleta de colores atractiva para distinguir cada categoría
     const palette = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
 
     categoryChartInstance = new Chart(ctx, {
@@ -844,23 +1593,28 @@ function renderCategoryChart(categorias, totalGastos) {
                 data,
                 backgroundColor: (categorias && categorias.length > 0) ? palette.slice(0, data.length) : ['#cbd5e1'],
                 borderWidth: 2,
-                borderColor: '#ffffff'
+                borderColor
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 1150,
+                easing: 'easeOutQuart'
+            },
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, font: { size: 11 } } }
             }
         }
     });
 }
 
 // =============================================================================
-// 9. ENVÍO DE DATOS DESDE LOS FORMULARIOS AL SERVIDOR
+// 9. ENVÍO DE DATOS DESDE LOS FORMULARIOS AL SERVIDOR (CON ALERTA DE SALDO)
 // =============================================================================
-
 function setupForms() {
     // 1. Formulario para guardar un nuevo Ingreso
     document.getElementById('form-ingreso')?.addEventListener('submit', async (e) => {
@@ -873,79 +1627,243 @@ function setupForms() {
             descripcion: document.getElementById('ingreso-desc').value
         };
 
-        await fetch('/api/ingresos', {
+        const res = await fetch('/api/ingresos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        // Cierra la ventana flotante, limpia el formulario y actualiza los números en pantalla
-        closeModal('modal-ingreso');
-        document.getElementById('form-ingreso').reset();
-        setDefaultDates();
-        loadDashboard();
-        loadIngresos();
+        if (res.ok) {
+            closeModal('modal-ingreso');
+            document.getElementById('form-ingreso').reset();
+            setDefaultDates();
+            showToast('Ingreso registrado correctamente', 'success');
+            loadDashboard();
+            loadIngresos();
+        }
     });
 
-    // 2. Formulario para guardar un nuevo Gasto
+    // 2. Formulario para guardar un nuevo Gasto General
     document.getElementById('form-gasto')?.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const payload = {
-            categoria_id: document.getElementById('gasto-categoria').value,
-            monto: document.getElementById('gasto-monto').value,
-            fecha: document.getElementById('gasto-fecha').value,
-            descripcion: document.getElementById('gasto-desc').value
+        const enviarGasto = async (forzar = false) => {
+            const payload = {
+                categoria_id: document.getElementById('gasto-categoria').value,
+                monto: document.getElementById('gasto-monto').value,
+                fecha: document.getElementById('gasto-fecha').value,
+                descripcion: document.getElementById('gasto-desc').value,
+                forzar
+            };
+
+            const res = await fetch('/api/gastos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (!res.ok && data.codigo === 'SALDO_INSUFICIENTE') {
+                mostrarModalSaldoInsuficiente({
+                    mensaje: data.error,
+                    saldoDisponible: data.saldoDisponible,
+                    montoSolicitado: data.montoSolicitado,
+                    faltante: data.faltante,
+                    onForzar: () => enviarGasto(true)
+                });
+                return;
+            }
+
+            if (res.ok) {
+                closeModal('modal-gasto');
+                document.getElementById('form-gasto').reset();
+                setDefaultDates();
+                showToast('Gasto registrado correctamente', data.saldoInsuficiente ? 'warning' : 'success');
+                loadDashboard();
+                loadGastos();
+            }
         };
 
-        await fetch('/api/gastos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        await enviarGasto(false);
+    });
 
-        closeModal('modal-gasto');
-        document.getElementById('form-gasto').reset();
-        setDefaultDates();
-        loadDashboard();
-        loadGastos();
+    // 3. Formulario para crear una Nueva Meta de Ahorro Personal
+    document.getElementById('form-meta')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const enviarMeta = async (forzar = false) => {
+            const payload = {
+                titulo: document.getElementById('meta-titulo').value.trim(),
+                categoria: document.getElementById('meta-categoria').value,
+                monto_objetivo: document.getElementById('meta-objetivo').value,
+                monto_ahorrado: document.getElementById('meta-ahorrado-inicial').value || 0,
+                forzar
+            };
+
+            const res = await fetch('/api/metas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (!res.ok && data.codigo === 'SALDO_INSUFICIENTE') {
+                mostrarModalSaldoInsuficiente({
+                    mensaje: data.error,
+                    saldoDisponible: data.saldoDisponible,
+                    montoSolicitado: data.montoSolicitado,
+                    faltante: data.faltante,
+                    onForzar: () => enviarMeta(true)
+                });
+                return;
+            }
+
+            if (res.ok) {
+                closeModal('modal-meta');
+                document.getElementById('form-meta').reset();
+                document.getElementById('meta-ahorrado-inicial').value = '0';
+                showToast(data.mensaje || 'Meta de ahorro creada', 'success');
+                loadMetas();
+                loadDashboard();
+            }
+        };
+
+        await enviarMeta(false);
+    });
+
+    // 4. Formulario para Poner / Abonar Dinero a una Meta de Ahorro
+    document.getElementById('form-abonar-meta')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const metaId = document.getElementById('abonar-meta-id').value;
+
+        const enviarAbono = async (forzar = false) => {
+            const monto = document.getElementById('abonar-meta-monto').value;
+            const res = await fetch(`/api/metas/${metaId}/abonar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ monto, forzar })
+            });
+            const data = await res.json();
+
+            if (!res.ok && data.codigo === 'SALDO_INSUFICIENTE') {
+                mostrarModalSaldoInsuficiente({
+                    mensaje: data.error,
+                    saldoDisponible: data.saldoDisponible,
+                    montoSolicitado: data.montoSolicitado,
+                    faltante: data.faltante,
+                    onForzar: () => enviarAbono(true)
+                });
+                return;
+            }
+
+            if (res.ok) {
+                closeModal('modal-abonar-meta');
+                document.getElementById('form-abonar-meta').reset();
+                showToast(data.mensaje || 'Abono guardado en tu meta', 'success');
+                loadMetas();
+                loadDashboard();
+            }
+        };
+
+        await enviarAbono(false);
+    });
+
+    // 5. Formulario para Anotar un Gasto en el Calendario Escolar (solo colegio)
+    document.getElementById('form-gasto-escolar')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const enviarEscolar = async (forzar = false) => {
+            const fechaElegida = document.getElementById('escolar-fecha').value;
+            const payload = {
+                fecha: fechaElegida,
+                tipo: document.getElementById('escolar-tipo').value,
+                monto: document.getElementById('escolar-monto').value,
+                descripcion: document.getElementById('escolar-desc').value,
+                forzar
+            };
+
+            const res = await fetch('/api/calendario-escolar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (!res.ok && data.codigo === 'SALDO_INSUFICIENTE') {
+                mostrarModalSaldoInsuficiente({
+                    mensaje: data.error,
+                    saldoDisponible: data.saldoDisponible,
+                    montoSolicitado: data.montoSolicitado,
+                    faltante: data.faltante,
+                    onForzar: () => enviarEscolar(true)
+                });
+                return;
+            }
+
+            if (res.ok) {
+                closeModal('modal-gasto-escolar');
+                document.getElementById('form-gasto-escolar').reset();
+                setDefaultDates();
+                if (fechaElegida) {
+                    const partes = fechaElegida.split('-');
+                    calendarState.year = parseInt(partes[0], 10);
+                    calendarState.month = parseInt(partes[1], 10) - 1;
+                    calendarState.selectedDate = fechaElegida;
+                }
+                showToast('Gasto escolar anotado en el calendario', data.saldoInsuficiente ? 'warning' : 'success');
+                loadCalendarioEscolar();
+                loadDashboard();
+            }
+        };
+
+        await enviarEscolar(false);
     });
 }
 
 // =============================================================================
 // 10. PANEL DEL ADMINISTRADOR
 // =============================================================================
+let adminEstudiantes = [];
 
-let adminEstudiantes = []; // Lista en memoria con los estudiantes cargados
-
-// Abre la pantalla del panel administrativo y le da la bienvenida al administrador
 function showAdmin(admin) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'none';
     document.getElementById('admin-screen').style.display = 'block';
     document.getElementById('admin-display').innerText = admin.nombre.split(' ')[0];
 
+    const elNombre = document.getElementById('admin-pass-nombre');
+    const elUsuario = document.getElementById('admin-pass-usuario');
+    if (elNombre) elNombre.innerText = admin.nombre || 'Administrador del Sistema';
+    if (elUsuario) elUsuario.innerText = `Usuario: @${admin.usuario || 'admin'}`;
+
     const tab = tabInicial('admin-screen', 'tab-admin-estudiantes');
     activateTab(tab, { historial: 'replace' });
     if (tab === 'tab-admin-estudiantes') loadSeguridad();
 }
 
-// Conecta los eventos del panel de administración
 function setupAdmin() {
     document.getElementById('admin-buscar')?.addEventListener('input', renderAdminEstudiantes);
     document.getElementById('form-estudiante')?.addEventListener('submit', guardarEstudiante);
     document.getElementById('btn-backup')?.addEventListener('click', descargarBackup);
     document.getElementById('form-admin-password')?.addEventListener('submit', cambiarPasswordAdmin);
+    document.getElementById('btn-admin-go-pass')?.addEventListener('click', () => activateTab('tab-admin-password'));
 }
 
-// Da formato legible a las fechas para humanos (ejemplo: "18/10/2026, 17:30")
+function togglePassVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const mostrar = input.type === 'password';
+    input.type = mostrar ? 'text' : 'password';
+    const icon = btn?.querySelector('i');
+    if (icon) {
+        icon.className = mostrar ? 'fas fa-eye-slash' : 'fas fa-eye';
+    }
+}
+
 function formatFecha(valor) {
     return valor ? new Date(valor).toLocaleString() : '—';
 }
 
-// ---------- CRUD de estudiantes desde el panel de admin ----------
-
-// Pide al servidor la lista completa de estudiantes
 async function loadAdminEstudiantes() {
     const cont = document.getElementById('list-admin-estudiantes');
     if (!cont) return;
@@ -959,7 +1877,6 @@ async function loadAdminEstudiantes() {
     renderAdminEstudiantes();
 }
 
-// Dibuja las tarjetas de los estudiantes y filtra en vivo cuando el admin escribe en el buscador
 function renderAdminEstudiantes() {
     const cont = document.getElementById('list-admin-estudiantes');
     if (!cont) return;
@@ -992,7 +1909,6 @@ function renderAdminEstudiantes() {
     `).join('');
 }
 
-// Abre la ventanita para registrar un nuevo estudiante (si no se pasa id) o para editar uno existente (con id)
 function openEstudianteModal(id) {
     const est = adminEstudiantes.find(e => e.id === id);
     const passInput = document.getElementById('est-password');
@@ -1015,7 +1931,6 @@ function openEstudianteModal(id) {
     openModal('modal-estudiante');
 }
 
-// Guarda los cambios del estudiante (crea nuevo o actualiza existente)
 async function guardarEstudiante(e) {
     e.preventDefault();
     const id = document.getElementById('est-id').value;
@@ -1043,7 +1958,6 @@ async function guardarEstudiante(e) {
     loadAdminEstudiantes();
 }
 
-// Pide confirmación al administrador y elimina la cuenta del estudiante
 async function eliminarEstudiante(id) {
     const est = adminEstudiantes.find(e => e.id === id);
     if (!est) return;
@@ -1058,15 +1972,12 @@ async function eliminarEstudiante(id) {
     loadAdminEstudiantes();
 }
 
-// ---------- Monitoreo de seguridad y auditoría ----------
-
 const NIVEL_SEGURIDAD = {
     ok: { color: 'verde', icono: 'fa-check-circle', texto: '🟢 Sistema seguro' },
     advertencia: { color: 'amarillo', icono: 'fa-exclamation-triangle', texto: '🟡 Requiere atención' },
     critico: { color: 'rojo', icono: 'fa-times-circle', texto: '🔴 Riesgo crítico' }
 };
 
-// Consulta el estado de seguridad y actualiza las métricas y eventos en el panel
 async function loadSeguridad() {
     const res = await fetch('/api/admin/seguridad');
     if (!res.ok) return;
@@ -1078,7 +1989,6 @@ async function loadSeguridad() {
     setStatusStrip('admin-status-strip', nivel.color, nivel.texto,
         pendientes ? `${pendientes} control(es) con observaciones. Revisa la pestaña Seguridad.` : 'Todos los controles están en orden.');
 
-    // Cajas de métricas numéricas
     document.getElementById('admin-metricas').innerHTML = [
         ['Estudiantes', m.estudiantes],
         ['Nuevos (7 días)', m.estudiantesNuevosSemana],
@@ -1088,7 +1998,6 @@ async function loadSeguridad() {
         ['Servidor activo', `${m.servidorActivoMin} min`]
     ].map(([titulo, valor]) => `<div class="metric-box"><span>${titulo}</span><strong>${valor}</strong></div>`).join('');
 
-    // Lista de controles de seguridad
     document.getElementById('admin-controles').innerHTML = data.controles.map(c => `
         <div class="control-item nivel-${c.nivel}">
             <i class="fas ${NIVEL_SEGURIDAD[c.nivel].icono}"></i>
@@ -1096,7 +2005,6 @@ async function loadSeguridad() {
         </div>
     `).join('');
 
-    // Cuentas bloqueadas temporalmente
     const bloqueadasBox = document.getElementById('admin-bloqueadas-box');
     bloqueadasBox.style.display = data.bloqueadas.length ? 'block' : 'none';
     document.getElementById('admin-bloqueadas').innerHTML = data.bloqueadas.map(b => `
@@ -1107,7 +2015,6 @@ async function loadSeguridad() {
         </div>
     `).join('');
 
-    // Tabla con los últimos 50 eventos registrados en la bitácora
     document.getElementById('admin-eventos').innerHTML = data.eventos.length
         ? data.eventos.map(ev => `
             <tr class="${ev.exito ? '' : 'evento-fallido'}">
@@ -1120,21 +2027,16 @@ async function loadSeguridad() {
         `).join('')
         : '<tr><td colspan="5" style="text-align:center;">Sin eventos registrados.</td></tr>';
 
-    // Información del último respaldo
     document.getElementById('backup-info').innerText = m.ultimoBackup
         ? `Último backup: ${formatFecha(m.ultimoBackup)}`
         : 'Todavía no se ha generado ningún backup.';
 }
 
-// Permite al administrador desbloquear de inmediato a un estudiante bloqueado
 async function desbloquearCuenta(usuario) {
     await fetch(`/api/admin/bloqueos/${encodeURIComponent(usuario)}/desbloquear`, { method: 'POST' });
     loadSeguridad();
 }
 
-// ---------- Descarga de copias de seguridad (Backup) y cambio de contraseña ----------
-
-// Descarga un archivo .sql con toda la base de datos
 async function descargarBackup() {
     const btn = document.getElementById('btn-backup');
     btn.disabled = true;
@@ -1161,13 +2063,19 @@ async function descargarBackup() {
     }
 }
 
-// Permite al administrador cambiar su contraseña desde su panel
 async function cambiarPasswordAdmin(e) {
     e.preventDefault();
     const msg = document.getElementById('admin-pass-msg');
+    const actual = document.getElementById('admin-pass-actual').value;
     const nueva = document.getElementById('admin-pass-nueva').value;
     msg.className = 'alert-error';
     msg.style.display = 'none';
+
+    if (nueva.length < 6) {
+        msg.innerText = 'La nueva contraseña debe tener al menos 6 caracteres';
+        msg.style.display = 'block';
+        return;
+    }
 
     if (nueva !== document.getElementById('admin-pass-nueva2').value) {
         msg.innerText = 'Las contraseñas nuevas no coinciden';
@@ -1175,18 +2083,31 @@ async function cambiarPasswordAdmin(e) {
         return;
     }
 
-    const res = await fetch('/api/admin/password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actual: document.getElementById('admin-pass-actual').value, nueva })
-    });
-    const data = await res.json();
+    try {
+        const res = await fetch('/api/admin/password', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actual, nueva })
+        });
+        const data = await res.json();
 
-    msg.innerText = res.ok ? 'Contraseña actualizada correctamente' : (data.error || 'No se pudo actualizar');
-    msg.className = res.ok ? 'alert-success' : 'alert-error';
-    msg.style.display = 'block';
-    if (res.ok) {
-        document.getElementById('form-admin-password').reset();
-        loadSeguridad();
+        msg.innerText = res.ok ? (data.mensaje || 'Contraseña actualizada correctamente') : (data.error || 'No se pudo actualizar');
+        msg.className = res.ok ? 'alert-success' : 'alert-error';
+        msg.style.display = 'block';
+        if (res.ok) {
+            document.getElementById('form-admin-password').reset();
+            ['admin-pass-actual', 'admin-pass-nueva', 'admin-pass-nueva2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.type = 'password';
+            });
+            document.querySelectorAll('#form-admin-password .btn-toggle-pass i').forEach(ic => {
+                ic.className = 'fas fa-eye';
+            });
+            loadSeguridad();
+        }
+    } catch {
+        msg.innerText = 'Error de conexión con el servidor';
+        msg.className = 'alert-error';
+        msg.style.display = 'block';
     }
 }

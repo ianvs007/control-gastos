@@ -1,15 +1,56 @@
+/* =============================================================================
+   ARCHIVO: styles.css - Hoja de Estilos Principal (Tema Claro, Tema Oscuro,
+   Animaciones de Menú y Gráficos, Calendario Escolar y Reporte Imprimible)
+   ============================================================================= */
+
 :root {
     --primary: #2563eb;
     --primary-dark: #1d4ed8;
+    --primary-soft: #eff6ff;
+    --accent: #8b5cf6;
+    --accent-dark: #7c3aed;
     --success: #10b981;
+    --success-soft: #dcfce7;
     --danger: #ef4444;
+    --danger-soft: #fee2e2;
     --warning: #f59e0b;
+    --warning-soft: #fef9c3;
     --bg-main: #f1f5f9;
     --surface: #ffffff;
+    --surface-alt: #f8fafc;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
+    --brand-color: #1e3a8a;
     --border: #e2e8f0;
+    --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+    --shadow-md: 0 10px 25px rgba(15, 23, 42, 0.08);
     --radius: 12px;
+}
+
+/* =============================================================================
+   VARIABLES PARA TEMA OSCURO (DARK MODE)
+   ============================================================================= */
+[data-theme="dark"] {
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --primary-soft: rgba(59, 130, 246, 0.16);
+    --accent: #a78bfa;
+    --accent-dark: #8b5cf6;
+    --success: #10b981;
+    --success-soft: rgba(16, 185, 129, 0.18);
+    --danger: #f87171;
+    --danger-soft: rgba(239, 68, 68, 0.18);
+    --warning: #fbbf24;
+    --warning-soft: rgba(245, 158, 11, 0.18);
+    --bg-main: #0f172a;
+    --surface: #1e293b;
+    --surface-alt: #0f172a;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --brand-color: #93c5fd;
+    --border: #334155;
+    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 12px 30px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -23,25 +64,178 @@ body {
     background-color: var(--bg-main);
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Pantalla de Login */
+/* =============================================================================
+   ANIMACIONES AL CAMBIAR DE MENÚ, TARJETAS Y GRÁFICOS
+   ============================================================================= */
+@keyframes tabSlideFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(14px) scale(0.99);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes chartCardReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes navIconPop {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.26) translateY(-2px); }
+    100% { transform: scale(1.08) translateY(-1px); }
+}
+
+@keyframes alertShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+
+@keyframes pulseWarning {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* =============================================================================
+   BOTONES DE CAMBIO DE TEMA (CLARO / OSCURO)
+   ============================================================================= */
+.btn-theme-floating {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 60;
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.25s ease;
+}
+
+.btn-theme-floating:hover {
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.btn-theme-nav {
+    background: var(--surface-alt) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.btn-theme-nav:hover {
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+    transform: rotate(15deg);
+}
+
+/* =============================================================================
+   NOTIFICACIONES FLOTANTES (TOASTS)
+   ============================================================================= */
+.toast-container {
+    position: fixed;
+    top: 68px;
+    right: 16px;
+    left: 16px;
+    max-width: 420px;
+    margin: 0 auto;
+    z-index: 350;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.toast-item {
+    pointer-events: auto;
+    background: var(--surface);
+    color: var(--text-primary);
+    border-left: 5px solid var(--primary);
+    border-radius: 10px;
+    padding: 12px 15px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13.5px;
+    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border-top: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.toast-item.toast-danger { border-left-color: var(--danger); }
+.toast-item.toast-success { border-left-color: var(--success); }
+.toast-item.toast-warning { border-left-color: var(--warning); }
+
+.toast-item i {
+    font-size: 18px;
+}
+.toast-item.toast-danger i { color: var(--danger); }
+.toast-item.toast-success i { color: var(--success); }
+.toast-item.toast-warning i { color: var(--warning); }
+
+/* =============================================================================
+   PANTALLA DE LOGIN
+   ============================================================================= */
 #login-screen {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
+    position: relative;
 }
 
 .login-card {
     background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 28px 22px;
     width: 100%;
-    max-width: 380px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+    max-width: 390px;
+    box-shadow: var(--shadow-md);
     text-align: center;
+    animation: tabSlideFadeIn 0.4s ease;
 }
 
 .login-header .logo-icon {
@@ -50,7 +244,7 @@ body {
     object-fit: contain;
     margin-bottom: 12px;
     border-radius: 14px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
 }
 
 .brand-logo {
@@ -63,14 +257,14 @@ body {
 .brand-title {
     font-size: 17px;
     font-weight: 700;
-    color: #1e3a8a;
+    color: var(--brand-color);
     letter-spacing: -0.3px;
 }
 
 .login-header h2 {
     font-size: 24px;
     font-weight: 800;
-    color: #1e3a8a;
+    color: var(--brand-color);
     letter-spacing: -0.5px;
 }
 
@@ -100,38 +294,81 @@ body {
     border-radius: 8px;
     font-size: 15px;
     outline: none;
-    background: #f8fafc;
+    background: var(--surface-alt);
+    color: var(--text-primary);
+    transition: border-color 0.2s, background-color 0.2s;
 }
 
 .form-group input:focus, .form-group select:focus {
     border-color: var(--primary);
-    background: #fff;
+    background: var(--surface);
 }
 
 .btn {
     border: none;
-    padding: 12px 18px;
+    padding: 11px 16px;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14.5px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+}
+
+.btn:active {
+    transform: translateY(0);
 }
 
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:active { background: var(--primary-dark); }
 .btn-secondary { background: var(--success); color: #fff; }
 .btn-danger { background: var(--danger); color: #fff; }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-outline-danger {
+    background: transparent;
+    border: 1.5px solid var(--danger);
+    color: var(--danger);
+}
+.btn-light-Action {
+    background: rgba(255,255,255,0.92);
+    color: #991b1b;
+    font-weight: 700;
+}
 .btn-block { width: 100%; }
-.btn-sm { padding: 8px 12px; font-size: 13px; }
+.btn-sm { padding: 7px 12px; font-size: 12.5px; }
 
 .alert-error {
-    background: #fee2e2;
-    color: #b91c1c;
-    padding: 10px;
+    background: var(--danger-soft);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    padding: 10px 12px;
     border-radius: 8px;
     font-size: 13px;
     margin-bottom: 12px;
+}
+[data-theme="light"] .alert-error {
+    color: #b91c1c;
+}
+
+.alert-success {
+    background: var(--success-soft);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+[data-theme="light"] .alert-success {
+    color: #166534;
 }
 
 .auth-switch {
@@ -145,119 +382,121 @@ body {
     text-decoration: none;
 }
 
-.alert-success {
-    background: #dcfce7;
-    color: #166534;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 13px;
-    margin-bottom: 12px;
-}
-
 .muted-text {
     font-size: 13px;
     color: var(--text-secondary);
     margin-bottom: 12px;
 }
 
-/* Panel de administración */
-.metric-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 15px;
+/* =============================================================================
+   BANNER Y MODAL DE ALERTA DE SALDO INSUFICIENTE
+   ============================================================================= */
+.insufficient-balance-banner {
+    background: linear-gradient(90deg, #dc2626, #ef4444);
+    color: #ffffff;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+    animation: tabSlideFadeIn 0.35s ease;
 }
-.metric-box {
-    background: #fff;
+
+.insufficient-balance-banner.low-balance-warning {
+    background: linear-gradient(90deg, #d97706, #f59e0b);
+}
+
+.insufficient-balance-banner .banner-icon {
+    font-size: 20px;
+    animation: pulseWarning 1.6s infinite;
+}
+
+.insufficient-balance-banner .banner-text {
+    flex: 1;
+    font-size: 12.5px;
+    line-height: 1.35;
+}
+
+.insufficient-balance-banner .banner-text strong {
+    display: block;
+    font-size: 13.5px;
+}
+
+.modal-alert-danger {
+    text-align: center;
+    border-top: 5px solid var(--danger);
+    animation: alertShake 0.42s ease;
+}
+
+.alert-modal-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--danger-soft);
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin: 0 auto 12px auto;
+    animation: pulseWarning 1.5s infinite;
+}
+
+.alert-modal-title {
+    font-size: 20px;
+    color: var(--danger);
+    margin-bottom: 8px;
+}
+
+.alert-modal-text {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+    line-height: 1.45;
+}
+
+.alert-modal-summary {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 12px;
-    text-align: center;
+    margin-bottom: 16px;
+    text-align: left;
+    font-size: 13.5px;
 }
-.metric-box span { display: block; font-size: 12px; color: var(--text-secondary); }
-.metric-box strong { font-size: 20px; }
 
-.control-item {
+.alert-modal-summary > div {
     display: flex;
-    gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-}
-.control-item:last-child { border-bottom: none; }
-.control-item i { margin-top: 2px; }
-.control-item p { color: var(--text-secondary); margin-top: 2px; }
-.nivel-ok i { color: var(--success); }
-.nivel-advertencia i { color: var(--warning); }
-.nivel-critico i { color: var(--danger); }
-
-.table-scroll { overflow-x: auto; }
-.table-scroll .report-table { font-size: 12px; white-space: nowrap; }
-.evento-fallido { color: var(--danger); }
-
-.btn-icon {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 15px;
-    margin-left: 8px;
-}
-.btn-icon:hover { color: var(--primary); }
-.btn-icon.danger:hover { color: var(--danger); }
-
-.demo-hints {
-    margin-top: 18px;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.4;
+    justify-content: space-between;
+    padding: 4px 0;
 }
 
-/* Header Superior */
+.alert-modal-summary .faltante-row {
+    border-top: 1px dashed var(--border);
+    margin-top: 6px;
+    padding-top: 8px;
+    color: var(--danger);
+    font-size: 14.5px;
+}
+
+/* =============================================================================
+   HEADER SUPERIOR Y CONTENEDOR PRINCIPAL
+   ============================================================================= */
 .top-sticky {
     position: sticky;
     top: 0;
     z-index: 50;
 }
 
-/* Franjas de estado (semáforo financiero) */
-.status-strip {
-    padding: 6px 18px;
-    font-size: 12.5px;
-    line-height: 1.35;
-    border-bottom: 1px solid rgba(0,0,0,0.06);
-}
-.status-strip .status-title {
-    margin-right: 4px;
-}
-.status-verde {
-    background: #dcfce7;
-    color: #166534;
-    border-left: 5px solid var(--success);
-}
-.status-amarillo {
-    background: #fef9c3;
-    color: #854d0e;
-    border-left: 5px solid var(--warning);
-}
-.status-rojo {
-    background: #fee2e2;
-    color: #991b1b;
-    border-left: 5px solid var(--danger);
-}
-.status-neutral {
-    background: #f1f5f9;
-    color: var(--text-secondary);
-    border-left: 5px solid #94a3b8;
-}
-
 .top-nav {
-    background: #fff;
+    background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 6px 18px;
     min-height: 56px;
+    transition: background-color 0.3s ease;
 }
 
 .brand {
@@ -274,7 +513,8 @@ body {
     align-items: center;
     gap: 10px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .user-pill button {
@@ -285,88 +525,510 @@ body {
     cursor: pointer;
 }
 
-/* Contenido Principal Móvil */
-.content-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 15px 15px 85px 15px;
+.user-pill .btn-top-key {
+    color: var(--primary);
 }
 
+/* Contenido Principal */
+.content-container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 16px 15px 95px 15px;
+}
+
+/* Animación fluida al cambiar de pestaña / menú */
 .tab-content {
     display: none;
 }
+
 .tab-content.active-tab {
     display: block;
+    animation: tabSlideFadeIn 0.38s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.welcome-box {
-    margin-bottom: 15px;
-}
-.welcome-box h3 { font-size: 20px; }
-.welcome-box p { font-size: 13px; color: var(--text-secondary); }
-
-/* Tarjetas de Resumen */
-.summary-cards {
+/* =============================================================================
+   PANEL DEL ESTUDIANTE RENOVADO (HERO, TARJETAS 2X2 Y METAS DE AHORRO)
+   ============================================================================= */
+.student-hero-card {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
     display: flex;
     flex-direction: column;
+    gap: 14px;
+}
+
+@media (min-width: 540px) {
+    .student-hero-card {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
+
+.student-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.18);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.student-hero-info h3 {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+
+.student-hero-info p {
+    font-size: 13px;
+    opacity: 0.9;
+    margin-top: 2px;
+}
+
+.student-hero-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-hero-shortcut {
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    padding: 7px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-hero-shortcut:hover {
+    background: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
+}
+
+/* Grid 2x2 de Tarjetas de Resumen */
+.summary-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 400px) {
+    .summary-cards-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .card {
-    background: #fff;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 14px 16px;
+    padding: 13px 14px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
 .card .icon-circle {
-    width: 44px;
-    height: 44px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 17px;
+    flex-shrink: 0;
 }
 
-.card-income .icon-circle { background: #dcfce7; color: var(--success); }
-.card-expense .icon-circle { background: #fee2e2; color: var(--danger); }
-.card-balance .icon-circle { background: #dbeafe; color: var(--primary); }
+.card-income .icon-circle { background: var(--success-soft); color: var(--success); }
+.card-expense .icon-circle { background: var(--danger-soft); color: var(--danger); }
+.card-balance .icon-circle { background: var(--primary-soft); color: var(--primary); }
+.card-savings-goal .icon-circle { background: rgba(139, 92, 246, 0.16); color: var(--accent); }
 
-.card span { font-size: 12px; color: var(--text-secondary); }
-.card h4 { font-size: 18px; font-weight: 700; margin-top: 2px; }
+.card.balance-insuficiente {
+    border-color: var(--danger);
+    background: var(--danger-soft);
+}
+.card.balance-insuficiente .icon-circle {
+    background: var(--danger);
+    color: #fff;
+}
 
-.quick-actions {
+.card span { font-size: 12px; color: var(--text-secondary); display: block; }
+.card h4 { font-size: 17px; font-weight: 800; margin-top: 2px; color: var(--text-primary); }
+.card-subtext {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Acciones rápidas (4 botones) */
+.quick-actions-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+    margin-bottom: 18px;
 }
 
-/* Listados */
+@media (min-width: 560px) {
+    .quick-actions-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Secciones en tarjetas del Panel */
+.panel-section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
 .section-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 10px;
     margin-bottom: 14px;
 }
 
+.section-header h3, .section-header h4 {
+    font-size: 16px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.section-header h3 i, .section-header h4 i {
+    color: var(--primary);
+}
+
+.section-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+    line-height: 1.35;
+}
+
+/* =============================================================================
+   TARJETAS DE METAS DE AHORRO PERSONAL Y BARRAS DE PROGRESO ANIMADAS
+   ============================================================================= */
+.metas-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.meta-card {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    transition: all 0.25s ease;
+    animation: chartCardReveal 0.35s ease;
+}
+
+.meta-card.meta-completada {
+    border-color: var(--success);
+    background: var(--success-soft);
+}
+
+.meta-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.meta-title-group strong {
+    font-size: 15px;
+    display: block;
+    color: var(--text-primary);
+}
+
+.meta-cat-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--primary-soft);
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-top: 3px;
+}
+
+.meta-status-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.meta-status-pill.completada {
+    background: var(--success);
+    color: #fff;
+}
+
+.meta-status-pill.progreso {
+    background: var(--warning-soft);
+    color: #d97706;
+}
+
+.meta-status-pill.archivada {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.meta-amounts-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.meta-amounts-row strong {
+    color: var(--text-primary);
+}
+
+.meta-progress-track {
+    width: 100%;
+    height: 11px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.meta-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 999px;
+    transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.meta-card.meta-completada .meta-progress-fill {
+    background: linear-gradient(90deg, #059669, #10b981);
+}
+
+.meta-actions-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.meta-summary-badge {
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.meta-abono-preview {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+.meta-abono-preview strong {
+    display: block;
+    font-size: 14px;
+}
+.meta-abono-preview span {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+
+/* =============================================================================
+   CALENDARIO ESCOLAR INTERACTIVO
+   ============================================================================= */
+.calendar-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: var(--shadow-sm);
+}
+
+.calendar-header-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.calendar-month-title {
+    text-align: center;
+}
+
+.calendar-month-title h4 {
+    font-size: 16px;
+    font-weight: 800;
+    text-transform: capitalize;
+    color: var(--text-primary);
+}
+
+.btn-cal-today {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 2px;
+}
+
+.btn-cal-nav {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-cal-nav:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+
+.calendar-days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.cal-day-cell {
+    min-height: 54px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface-alt);
+    padding: 5px 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.cal-day-cell:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.cal-day-cell.empty-cell {
+    background: transparent;
+    border-color: transparent;
+    cursor: default;
+    pointer-events: none;
+}
+
+.cal-day-cell.is-today {
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.cal-day-cell.is-selected {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    transform: scale(1.03);
+}
+
+.cal-day-num {
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.cal-day-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--danger-soft);
+    color: var(--danger);
+    padding: 1px 5px;
+    border-radius: 6px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-day-cell.is-selected .cal-day-badge {
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+/* =============================================================================
+   LISTADOS DE INGRESOS, GASTOS Y ESTUDIANTES
+   ============================================================================= */
 .item-card {
-    background: #fff;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 12px;
+    padding: 12px 14px;
     margin-bottom: 9px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: var(--shadow-sm);
+    animation: chartCardReveal 0.3s ease;
 }
 
-.item-info strong { font-size: 15px; display: block; }
-.item-info span { font-size: 12px; color: var(--text-secondary); display: block; }
+.item-info strong { font-size: 14.5px; display: block; color: var(--text-primary); }
+.item-info span { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px; }
 .item-amount { font-weight: 700; font-size: 15px; text-align: right; }
 .item-amount.inc { color: var(--success); }
 .item-amount.exp { color: var(--danger); }
@@ -374,19 +1036,24 @@ body {
 .btn-del {
     background: none;
     border: none;
-    color: #cbd5e1;
+    color: var(--text-secondary);
     cursor: pointer;
     margin-left: 10px;
+    font-size: 14px;
+    transition: color 0.2s;
 }
 .btn-del:hover { color: var(--danger); }
 
-/* Reportes */
+/* =============================================================================
+   REPORTES, FILTROS Y GRÁFICOS ANIMADOS
+   ============================================================================= */
 .report-filter-card {
-    background: #fff;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 14px;
     margin-bottom: 14px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    box-shadow: var(--shadow-sm);
 }
 
 .filter-pills {
@@ -400,7 +1067,7 @@ body {
     padding: 7px 14px;
     border-radius: 20px;
     border: 1px solid var(--border);
-    background: #f8fafc;
+    background: var(--surface-alt);
     font-size: 13px;
     font-weight: 600;
     color: var(--text-secondary);
@@ -413,7 +1080,7 @@ body {
 }
 
 .filter-pill:hover {
-    background: #e2e8f0;
+    border-color: var(--primary);
     color: var(--text-primary);
 }
 
@@ -421,7 +1088,7 @@ body {
     background: var(--primary);
     color: #fff;
     border-color: var(--primary);
-    box-shadow: 0 2px 6px rgba(37,99,235,0.25);
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3);
 }
 
 .filter-inputs-row {
@@ -449,13 +1116,9 @@ body {
     border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 13.5px;
-    background: #fff;
+    background: var(--surface-alt);
     color: var(--text-primary);
     outline: none;
-}
-
-.filter-control input:focus {
-    border-color: var(--primary);
 }
 
 .semana-selector-wrap {
@@ -466,8 +1129,8 @@ body {
 }
 
 .semana-rango-badge {
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--primary-soft);
+    color: var(--primary);
     padding: 4px 10px;
     border-radius: 6px;
     font-size: 12px;
@@ -483,20 +1146,24 @@ body {
 }
 
 .report-summary-box {
-    background: #fff;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 14px;
     margin-bottom: 15px;
     display: flex;
     justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 10px;
     text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    box-shadow: var(--shadow-sm);
 }
 
 .report-metric span { font-size: 12px; display: block; color: var(--text-secondary); }
 .text-green { color: var(--success); }
 .text-red { color: var(--danger); }
 .text-blue { color: var(--primary); }
+.text-amber { color: var(--warning); }
 
 .charts-notification-grid {
     display: grid;
@@ -514,7 +1181,7 @@ body {
 .canvas-box {
     position: relative;
     width: 100%;
-    max-height: 220px;
+    max-height: 225px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -522,20 +1189,66 @@ body {
 }
 
 .canvas-box canvas {
-    max-height: 220px !important;
+    max-height: 225px !important;
+}
+
+/* Franjas de estado (semáforo financiero) */
+.status-strip {
+    padding: 8px 14px;
+    font-size: 12.5px;
+    line-height: 1.35;
+    border-bottom: 1px solid var(--border);
+}
+.status-strip .status-title {
+    margin-right: 4px;
+}
+.status-verde {
+    background: var(--success-soft);
+    color: #059669;
+    border-left: 5px solid var(--success);
+}
+[data-theme="dark"] .status-verde { color: #6ee7b7; }
+
+.status-amarillo {
+    background: var(--warning-soft);
+    color: #b45309;
+    border-left: 5px solid var(--warning);
+}
+[data-theme="dark"] .status-amarillo { color: #fde68a; }
+
+.status-rojo {
+    background: var(--danger-soft);
+    color: #dc2626;
+    border-left: 5px solid var(--danger);
+}
+[data-theme="dark"] .status-rojo { color: #fca5a5; }
+
+.status-neutral {
+    background: var(--surface-alt);
+    color: var(--text-secondary);
+    border-left: 5px solid #94a3b8;
 }
 
 .report-status-card {
     border-radius: 8px;
     margin-top: 10px;
+    border-bottom: none;
 }
 
 .chart-wrapper, .table-container {
-    background: #fff;
-    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     padding: 15px;
     margin-bottom: 15px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    box-shadow: var(--shadow-sm);
+    animation: chartCardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.chart-wrapper:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
 .chart-wrapper h4, .table-container h4 {
@@ -555,27 +1268,247 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
-    font-size: 14px;
+    font-size: 13.5px;
 }
 
 .report-table th, .report-table td {
-    padding: 8px 10px;
+    padding: 9px 10px;
     text-align: left;
     border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
 }
 
-/* Barra Inferior (Bottom Bar) */
+.report-table th {
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: var(--surface-alt);
+}
+
+/* =============================================================================
+   SECCIÓN DE REPORTE MENSUAL COMPLETO E IMPRESIÓN (@media print)
+   ============================================================================= */
+.print-only-header {
+    display: none;
+}
+
+.monthly-sheet-banner {
+    background: var(--primary-soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.monthly-sheet-banner h4 {
+    color: var(--primary);
+    font-size: 15.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media print {
+    html, body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 12px;
+    }
+
+    .no-print,
+    .bottom-nav,
+    .top-sticky,
+    .toast-container,
+    .modal {
+        display: none !important;
+    }
+
+    .content-container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .print-only-header {
+        display: block !important;
+        border-bottom: 2px solid #1e3a8a;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
+
+    .print-brand-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 10px;
+    }
+
+    .print-logo {
+        width: 52px;
+        height: 52px;
+        object-fit: contain;
+    }
+
+    .print-brand-row h2 {
+        font-size: 18px;
+        color: #1e3a8a;
+    }
+
+    .print-student-meta {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px 16px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 12px;
+    }
+
+    .chart-wrapper,
+    .table-container,
+    .report-summary-box,
+    .monthly-sheet-banner {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .charts-notification-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .report-table th, .report-table td {
+        color: #0f172a !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+    }
+
+    .report-table th {
+        background: #f1f5f9 !important;
+    }
+}
+
+/* =============================================================================
+   PANEL DE ADMINISTRACIÓN
+   ============================================================================= */
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.metric-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+.metric-box span { display: block; font-size: 12px; color: var(--text-secondary); }
+.metric-box strong { font-size: 20px; color: var(--text-primary); }
+
+.control-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+.control-item:last-child { border-bottom: none; }
+.control-item i { margin-top: 2px; }
+.control-item p { color: var(--text-secondary); margin-top: 2px; }
+.nivel-ok i { color: var(--success); }
+.nivel-advertencia i { color: var(--warning); }
+.nivel-critico i { color: var(--danger); }
+
+.table-scroll { overflow-x: auto; }
+.table-scroll .report-table { font-size: 12.5px; white-space: nowrap; }
+.evento-fallido { color: var(--danger); }
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 15px;
+    margin-left: 8px;
+}
+.btn-icon:hover { color: var(--primary); }
+.btn-icon.danger:hover { color: var(--danger); }
+
+.admin-account-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--primary-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.admin-account-banner .icon-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+}
+
+.pass-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.pass-input-wrap input {
+    padding-right: 42px;
+}
+
+.btn-toggle-pass {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-toggle-pass:hover {
+    color: var(--primary);
+}
+
+/* =============================================================================
+   BARRA INFERIOR DE NAVEGACIÓN CON ANIMACIÓN
+   ============================================================================= */
 .bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: #fff;
+    background: var(--surface);
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: space-around;
-    padding: 8px 0;
+    padding: 7px 0;
     z-index: 100;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
 }
 
 .nav-item {
@@ -588,16 +1521,44 @@ body {
     color: var(--text-secondary);
     font-size: 11px;
     cursor: pointer;
+    position: relative;
+    padding: 4px 10px;
+    border-radius: 10px;
+    transition: color 0.25s ease, background-color 0.25s ease;
 }
 
-.nav-item i { font-size: 18px; }
-.nav-item.active { color: var(--primary); font-weight: 600; }
+.nav-item i {
+    font-size: 18px;
+    transition: transform 0.25s ease;
+}
 
-/* Modales */
+.nav-item.active {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.nav-item.active i {
+    animation: navIconPop 0.35s ease forwards;
+}
+
+.nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    width: 24px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--primary);
+}
+
+/* =============================================================================
+   VENTANAS FLOTANTES (MODALES)
+   ============================================================================= */
 .modal {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(2px);
     display: none;
     align-items: center;
     justify-content: center;
@@ -605,14 +1566,20 @@ body {
     z-index: 200;
 }
 
-.modal.active { display: flex; }
+.modal.active {
+    display: flex;
+}
 
 .modal-content {
-    background: #fff;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
     border-radius: var(--radius);
     padding: 20px;
     width: 100%;
-    max-width: 400px;
+    max-width: 410px;
+    box-shadow: var(--shadow-md);
+    animation: tabSlideFadeIn 0.28s ease;
 }
 
 .modal-header {
@@ -626,5 +1593,9 @@ body {
     background: none;
     border: none;
     font-size: 24px;
+    color: var(--text-secondary);
     cursor: pointer;
+}
+.close-btn:hover {
+    color: var(--danger);
 }

@@ -39,7 +39,7 @@ router.get('/estudiantes', async (req, res) => {
         const [rows] = await db.query(`
             SELECT e.id, e.nombre_completo, e.usuario, e.curso, e.fecha_registro,
                    (SELECT COUNT(*) FROM ingresos i WHERE i.estudiante_id = e.id) AS total_ingresos,
-                   (SELECT COUNT(*) FROM gastos g WHERE g.estudiante_id = e.id) AS total_gastos
+                   ((SELECT COUNT(*) FROM gastos g WHERE g.estudiante_id = e.id) + (SELECT COUNT(*) FROM gastos_escolares ge WHERE ge.estudiante_id = e.id)) AS total_gastos
             FROM estudiantes e
             ORDER BY e.nombre_completo ASC
         `);
@@ -295,13 +295,23 @@ router.post('/bloqueos/:usuario/desbloquear', async (req, res) => {
 // RUTA PUT /api/admin/password -> Permite al administrador cambiar su propia contraseña
 router.put('/password', async (req, res) => {
     const { actual, nueva } = req.body;
-    if (!nueva || nueva.length < 8) {
-        return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' });
+    if (!actual) {
+        return res.status(400).json({ error: 'Debes ingresar tu contraseña actual' });
+    }
+    if (!nueva || nueva.length < 6) {
+        return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+    if (actual === nueva) {
+        return res.status(400).json({ error: 'La nueva contraseña debe ser diferente a la actual' });
     }
     try {
         // Consultamos la contraseña actual del administrador en la base de datos
         const [rows] = await db.query('SELECT password FROM administradores WHERE id = ?', [req.session.user.id]);
-        if (rows.length === 0 || !(await security.verificarPassword(actual || '', rows[0].password))) {
+        if (rows.length === 0 || !(await security.verificarPassword(actual, rows[0].password))) {
+            await security.registrarEvento(req, {
+                evento: 'ADMIN_CAMBIO_PASSWORD', rol: 'admin', usuario: req.session.user.usuario,
+                detalle: 'Contraseña actual incorrecta', exito: false
+            });
             return res.status(401).json({ error: 'La contraseña actual que escribiste es incorrecta' });
         }
         // Ciframos la nueva contraseña y la guardamos
@@ -309,9 +319,10 @@ router.put('/password', async (req, res) => {
         await db.query('UPDATE administradores SET password = ? WHERE id = ?', [hash, req.session.user.id]);
 
         await security.registrarEvento(req, {
-            evento: 'ADMIN_CAMBIO_PASSWORD', rol: 'admin', usuario: req.session.user.usuario
+            evento: 'ADMIN_CAMBIO_PASSWORD', rol: 'admin', usuario: req.session.user.usuario,
+            detalle: 'Contraseña de administrador actualizada'
         });
-        res.json({ mensaje: 'Contraseña actualizada correctamente' });
+        res.json({ mensaje: 'Contraseña de administrador actualizada correctamente' });
     } catch (err) {
         console.error('❌ Error al cambiar contraseña de admin:', err.message);
         res.status(500).json({ error: 'Error al cambiar la contraseña' });

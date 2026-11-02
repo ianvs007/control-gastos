@@ -83,6 +83,50 @@ INSERT INTO `ingresos` (`id`, `estudiante_id`, `fuente`, `monto`, `fecha`, `desc
 (6, 1, 'Recreo', '20.00', '2026-10-08 00:00:00.000', 'para mi colegrio', '2026-10-07 23:42:48.000'),
 (7, 1, 'regalo', '100.00', '2026-10-07 00:00:00.000', 'cumpleaños', '2026-10-08 00:10:11.000');
 
+DROP TABLE IF EXISTS `metas_ahorro`;
+CREATE TABLE `metas_ahorro` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `estudiante_id` int NOT NULL,
+  `titulo` varchar(120) NOT NULL,
+  `categoria` varchar(50) DEFAULT 'Personal',
+  `monto_objetivo` decimal(10,2) NOT NULL,
+  `monto_ahorrado` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `estado` varchar(20) NOT NULL DEFAULT 'en_progreso',
+  `visible_panel` tinyint(1) NOT NULL DEFAULT '1',
+  `fecha_creacion` date NOT NULL,
+  `fecha_completada` datetime DEFAULT NULL,
+  `creado_en` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_metas_estudiante` (`estudiante_id`),
+  CONSTRAINT `fk_metas_estudiante` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ;
+
+INSERT INTO `metas_ahorro` (`id`, `estudiante_id`, `titulo`, `categoria`, `monto_objetivo`, `monto_ahorrado`, `estado`, `visible_panel`, `fecha_creacion`, `fecha_completada`) VALUES
+(1, 1, 'Audífonos Bluetooth', 'Tecnología', '180.00', '120.00', 'en_progreso', 1, '2026-10-05', NULL),
+(2, 1, ' Pelota de Fútbol Oficial', 'Deporte', '100.00', '100.00', 'completada', 1, '2026-09-15', '2026-10-10 15:30:00'),
+(3, 2, 'Calculadora Científica', 'Estudios', '150.00', '90.00', 'en_progreso', 1, '2026-10-02', NULL);
+
+DROP TABLE IF EXISTS `gastos_escolares`;
+CREATE TABLE `gastos_escolares` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `estudiante_id` int NOT NULL,
+  `tipo` varchar(60) NOT NULL,
+  `monto` decimal(10,2) NOT NULL,
+  `fecha` date NOT NULL,
+  `descripcion` varchar(255) DEFAULT NULL,
+  `creado_en` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_gastos_escolares_estudiante` (`estudiante_id`),
+  KEY `idx_gastos_escolares_fecha` (`fecha`),
+  CONSTRAINT `fk_gastos_escolares_estudiante` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 ;
+
+INSERT INTO `gastos_escolares` (`id`, `estudiante_id`, `tipo`, `monto`, `fecha`, `descripcion`) VALUES
+(1, 1, 'Fotocopias e Impresiones', '5.00', '2026-10-08', 'Fotocopias de práctica de Matemáticas'),
+(2, 1, 'Materiales para clase', '25.00', '2026-10-14', 'Cartulinas, marcadores y pegamento para exposición'),
+(3, 1, 'Recreo / Merienda escolar', '12.00', '2026-10-16', 'Sándwich y jugo en el quiosco del colegio'),
+(4, 2, 'Fotocopias e Impresiones', '8.00', '2026-10-09', 'Impresión de informe de Biología');
+
 DROP TABLE IF EXISTS `administradores`;
 CREATE TABLE `administradores` (
   `id` int NOT NULL AUTO_INCREMENT,

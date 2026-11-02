@@ -70,6 +70,43 @@ async function initSecuritySchema() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
+    // Tabla de Metas de Ahorro personales del estudiante (para comprarse algo personal y llevar historial)
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS metas_ahorro (
+            id INT NOT NULL AUTO_INCREMENT,
+            estudiante_id INT NOT NULL,
+            titulo VARCHAR(120) NOT NULL,
+            categoria VARCHAR(50) DEFAULT 'Personal',
+            monto_objetivo DECIMAL(10,2) NOT NULL,
+            monto_ahorrado DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            estado VARCHAR(20) NOT NULL DEFAULT 'en_progreso',
+            visible_panel TINYINT(1) NOT NULL DEFAULT 1,
+            fecha_creacion DATE NOT NULL,
+            fecha_completada DATETIME DEFAULT NULL,
+            creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY fk_metas_estudiante (estudiante_id),
+            CONSTRAINT fk_metas_estudiante FOREIGN KEY (estudiante_id) REFERENCES estudiantes (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Tabla de Calendario Escolar: gastos exclusivos que el estudiante tiene en el colegio (fotocopias, materiales, etc.)
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS gastos_escolares (
+            id INT NOT NULL AUTO_INCREMENT,
+            estudiante_id INT NOT NULL,
+            tipo VARCHAR(60) NOT NULL,
+            monto DECIMAL(10,2) NOT NULL,
+            fecha DATE NOT NULL,
+            descripcion VARCHAR(255) DEFAULT NULL,
+            creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY fk_gastos_escolares_estudiante (estudiante_id),
+            KEY idx_gastos_escolares_fecha (fecha),
+            CONSTRAINT fk_gastos_escolares_estudiante FOREIGN KEY (estudiante_id) REFERENCES estudiantes (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
     // Verificamos si ya existe al menos un administrador registrado
     const [admins] = await db.query('SELECT COUNT(*) AS total FROM administradores');
     if (admins[0].total === 0) {
