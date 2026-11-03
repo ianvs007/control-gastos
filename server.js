@@ -911,7 +911,7 @@ app.delete('/api/calendario-escolar/:id', requireAuth, async (req, res) => {
 // entregará el archivo principal 'index.html', y el JavaScript se encargará de mostrar la pestaña adecuada.
 const RUTAS_PANTALLAS = [
     '/login', '/registro',
-    '/inicio', '/ingresos', '/gastos', '/calendario', '/reportes',
+    '/inicio', '/ingresos', '/gastos', '/metas', '/calendario', '/reportes',
     '/admin', '/admin/estudiantes', '/admin/seguridad', '/admin/backup', '/admin/password'
 ];
 app.get(RUTAS_PANTALLAS, (req, res) => {

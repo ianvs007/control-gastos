@@ -4,12 +4,12 @@
     <!-- Configuración básica de la página web -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FinanzGagnon - Control de Gastos Estudiantil</title>
+    <title>FinanzGagnon - Control Financiero Estudiantil</title>
 
     <!-- Iconos vectoriales de FontAwesome (para botones y tarjetas) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Hoja de estilos visuales principal -->
-    <link rel="stylesheet" href="/css/styles.css?v=2">
+    <link rel="stylesheet" href="/css/styles.css?v=4">
     <!-- Icono de pestaña del navegador (Favicon con el logo oficial) -->
     <link rel="icon" type="image/jpeg" href="/img/logo.jpg">
     <!-- Librería Chart.js para dibujar los gráficos interactivos y animados -->
@@ -22,19 +22,18 @@
 
     <!-- ======================================================================= -->
     <!-- 1. PANTALLA DE ACCESO (LOGIN Y REGISTRO DE ESTUDIANTES)                 -->
-    <!-- Esta pantalla se muestra cuando el usuario aún no ha iniciado sesión.  -->
     <!-- ======================================================================= -->
     <div id="login-screen" class="view active-view">
-        <button type="button" class="btn-theme-floating" onclick="toggleTheme()" title="Cambiar entre Tema Claro y Tema Oscuro">
+        <button type="button" class="btn-theme-floating hover-animate" onclick="toggleTheme()" title="Cambiar entre Tema Claro y Tema Oscuro">
             <i class="fas fa-moon theme-icon"></i>
             <span class="theme-label">Modo Oscuro</span>
         </button>
 
-        <div class="login-card">
+        <div class="login-card hover-animate">
             <div class="login-header">
                 <img src="/img/logo.jpg" alt="FinanzGagnon" class="logo-icon">
                 <h2>FinanzGagnon</h2>
-                <p>Sistema de Control de Gasto Estudiantil</p>
+                <p>Sistema de Control Financiero Estudiantil</p>
             </div>
             <form id="form-login">
                 <div class="form-group">
@@ -46,7 +45,7 @@
                     <input type="password" id="login-pass" placeholder="Tu contraseña" required autocomplete="current-password">
                 </div>
                 <div id="login-error" class="alert-error" style="display:none;"></div>
-                <button type="submit" class="btn btn-primary btn-block">
+                <button type="submit" class="btn btn-primary btn-block hover-animate">
                     <i class="fas fa-sign-in-alt"></i> Iniciar sesión
                 </button>
                 <p class="auth-switch">¿No tienes cuenta? <a href="#" onclick="showAuthForm('registro'); return false;">Regístrate aquí</a></p>
@@ -59,7 +58,7 @@
                 </div>
                 <div class="form-group">
                     <label for="reg-curso"><i class="fas fa-school"></i> Curso</label>
-                    <input type="text" id="reg-curso" placeholder="Ej: 5to de Secundaria" maxlength="50">
+                    <input type="text" id="reg-curso" placeholder="Ej: 6to de Secundaria &quot;B&quot;" maxlength="50">
                 </div>
                 <div class="form-group">
                     <label for="reg-user"><i class="fas fa-user"></i> Usuario</label>
@@ -74,7 +73,7 @@
                     <input type="password" id="reg-pass2" placeholder="Repite tu contraseña" required minlength="6" autocomplete="new-password">
                 </div>
                 <div id="registro-error" class="alert-error" style="display:none;"></div>
-                <button type="submit" class="btn btn-secondary btn-block">
+                <button type="submit" class="btn btn-secondary btn-block hover-animate">
                     <i class="fas fa-user-plus"></i> Crear cuenta
                 </button>
                 <p class="auth-switch">¿Ya tienes cuenta? <a href="#" onclick="showAuthForm('login'); return false;">Inicia sesión</a></p>
@@ -88,20 +87,56 @@
     <div id="app-screen" class="view" style="display:none;">
         
         <div class="top-sticky no-print">
-            <!-- Header Superior Móvil y Escritorio -->
+            <!-- Header Superior Estilo Modelo Académico -->
             <header class="top-nav">
                 <div class="brand">
                     <img src="/img/logo.jpg" alt="FinanzGagnon" class="brand-logo">
                     <span class="brand-title">FinanzGagnon</span>
+                    <span class="etica-badge">GESTIÓN ÉTICA</span>
                 </div>
                 <div class="user-pill">
-                    <button type="button" class="btn-theme-nav" onclick="toggleTheme()" title="Cambiar entre Tema Claro y Tema Oscuro">
+                    <button type="button" class="btn-theme-nav hover-animate" onclick="toggleTheme()" title="Cambiar entre Tema Claro y Tema Oscuro">
                         <i class="fas fa-moon theme-icon"></i>
                     </button>
-                    <span id="user-display">Estudiante</span>
-                    <button id="btn-logout" title="Cerrar sesión"><i class="fas fa-power-off"></i></button>
+                    <div class="user-info-header">
+                        <strong id="user-display">Estudiante</strong>
+                        <small id="user-course-header">Secundaria</small>
+                    </div>
+                    <button id="btn-logout" class="btn-logout-pill hover-animate" title="Cerrar sesión">
+                        <i class="fas fa-sign-out-alt"></i> <span>Cerrar Sesión</span>
+                    </button>
                 </div>
             </header>
+
+            <!-- Barra de Navegación Superior Horizontal (Visible en PC y Tablets) -->
+            <nav class="top-tabs-bar">
+                <div class="top-tabs-inner">
+                    <button class="nav-item active hover-animate" data-tab="tab-inicio">
+                        <i class="fas fa-home"></i>
+                        <span>Resumen</span>
+                    </button>
+                    <button class="nav-item hover-animate" data-tab="tab-ingresos">
+                        <i class="fas fa-wallet"></i>
+                        <span>Ingresos</span>
+                    </button>
+                    <button class="nav-item hover-animate" data-tab="tab-gastos">
+                        <i class="fas fa-receipt"></i>
+                        <span>Gastos</span>
+                    </button>
+                    <button class="nav-item hover-animate" data-tab="tab-metas">
+                        <i class="fas fa-bullseye"></i>
+                        <span>Metas de Ahorro</span>
+                    </button>
+                    <button class="nav-item hover-animate" data-tab="tab-calendario">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Calendario Gastos</span>
+                    </button>
+                    <button class="nav-item hover-animate" data-tab="tab-reportes">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Reporte y Gráficos</span>
+                    </button>
+                </div>
+            </nav>
 
             <!-- Banner global de Alerta de Saldo Insuficiente -->
             <div id="alerta-saldo-banner" class="insufficient-balance-banner" style="display:none;" role="alert">
@@ -110,8 +145,8 @@
                     <strong id="alerta-saldo-titulo">¡Alerta de Saldo Insuficiente!</strong>
                     <span id="alerta-saldo-desc">Tu saldo disponible es insuficiente. Registra un ingreso o cuida tus próximos gastos.</span>
                 </div>
-                <button type="button" class="btn btn-sm btn-light-Action" onclick="openModal('modal-ingreso')">
-                    <i class="fas fa-plus"></i> Ingreso
+                <button type="button" class="btn btn-sm btn-light-Action hover-animate" onclick="openModal('modal-ingreso')">
+                    <i class="fas fa-plus"></i> Nuevo Ingreso
                 </button>
             </div>
         </div>
@@ -119,108 +154,140 @@
         <main class="content-container">
 
             <!-- =============================================================== -->
-            <!-- TAB 1: INICIO / PANEL DEL ESTUDIANTE RENOVADO Y METAS DE AHORRO -->
+            <!-- TAB 1: INICIO / RESUMEN (DISEÑO MODELO BENTO SIN ÁREAS VACÍAS)  -->
             <!-- =============================================================== -->
             <section id="tab-inicio" class="tab-content active-tab">
-                <!-- Banner de Bienvenida del Estudiante Renovado -->
-                <div class="student-hero-card">
-                    <div class="student-hero-info">
-                        <span class="student-badge"><i class="fas fa-user-graduate"></i> Panel del Estudiante</span>
-                        <h3 id="welcome-msg">¡Hola de nuevo!</h3>
-                        <p id="course-msg">Resumen de tu balance escolar</p>
+
+                <!-- FILA 1: PANEL ACADÉMICO FINANCIERO (IZQ) + SEMÁFORO FINANCIERO (DER) -->
+                <div class="bento-top-grid">
+
+                    <!-- Tarjeta Izquierda: Panel Académico Financiero -->
+                    <div class="bento-card bento-welcome-card hover-animate">
+                        <div class="bento-welcome-header">
+                            <div>
+                                <span class="panel-pill-badge">PANEL ACADÉMICO FINANCIERO</span>
+                                <h2 id="welcome-msg" class="bento-greeting">¡Bienvenido/a, Estudiante!</h2>
+                                <p id="course-msg" class="bento-subtitle">Monitoreo responsable de tus ingresos y egresos escolares.</p>
+                            </div>
+                            <div class="bento-quick-btns">
+                                <button type="button" class="btn btn-secondary btn-sm hover-animate" onclick="openModal('modal-ingreso')">
+                                    <i class="fas fa-plus-circle"></i> Ingreso
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm hover-animate" onclick="openModal('modal-gasto')">
+                                    <i class="fas fa-minus-circle"></i> Gasto
+                                </button>
+                                <button type="button" class="btn btn-accent btn-sm hover-animate" onclick="openGastoEscolarModal()">
+                                    <i class="fas fa-school"></i> Colegio
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bento-divider"></div>
+
+                        <!-- 3 Métricas Financieras en Línea (como en el modelo) -->
+                        <div class="bento-metrics-row">
+                            <div class="bento-metric-item hover-animate" onclick="activateTab('tab-ingresos')" title="Ver mis ingresos">
+                                <span class="metric-label">INGRESOS TOTALES</span>
+                                <strong id="dash-ingresos" class="metric-value val-green">Bs 0.00</strong>
+                            </div>
+                            <div class="bento-metric-item hover-animate" onclick="activateTab('tab-gastos')" title="Ver mis gastos">
+                                <span class="metric-label">GASTOS TOTALES</span>
+                                <strong id="dash-gastos" class="metric-value val-red">Bs 0.00</strong>
+                                <small id="dash-gastos-escolares-sub" class="metric-sub">Colegio: Bs 0.00</small>
+                            </div>
+                            <div class="bento-metric-item hover-animate" id="card-saldo-box">
+                                <span class="metric-label">SALDO DISPONIBLE</span>
+                                <strong id="dash-saldo" class="metric-value val-blue">Bs 0.00</strong>
+                                <small id="dash-saldo-estado" class="metric-sub">Estado saludable</small>
+                            </div>
+                        </div>
                     </div>
-                    <div class="student-hero-actions">
-                        <button type="button" class="btn-hero-shortcut" onclick="activateTab('tab-calendario')" title="Ir al Calendario Escolar">
-                            <i class="fas fa-calendar-check"></i> Calendario Escolar
-                        </button>
-                        <button type="button" class="btn-hero-shortcut" onclick="irAReporteMensualImprimible()" title="Ver e imprimir reporte mensual">
-                            <i class="fas fa-print"></i> Reporte Mensual
-                        </button>
+
+                    <!-- Tarjeta Derecha: Semáforo Financiero -->
+                    <div class="bento-card bento-semaforo-card hover-animate">
+                        <div class="semaforo-header">
+                            <div class="semaforo-title-wrap">
+                                <i class="fas fa-traffic-light semaforo-icon"></i>
+                                <h4>SEMÁFORO FINANCIERO</h4>
+                            </div>
+                            <span id="semaforo-badge" class="semaforo-status-pill pill-optimo">ÓPTIMO</span>
+                        </div>
+                        <p class="bento-subtitle">Indicador ético del uso de tu presupuesto.</p>
+
+                        <!-- Caja de diagnóstico del Semáforo -->
+                        <div id="semaforo-box" class="semaforo-indicator-box semaforo-verde hover-animate">
+                            <div id="semaforo-dot" class="semaforo-circle"></div>
+                            <div class="semaforo-box-text">
+                                <strong id="semaforo-titulo">Verde - Gestión Óptima</strong>
+                                <span id="semaforo-detalle">Presupuesto ejecutado: 0.0%. Estado saludable.</span>
+                            </div>
+                        </div>
+
+                        <p class="semaforo-criterio">
+                            <strong>Criterio:</strong> Verde &lt; 70% | Amarillo 70-80% | Rojo &ge; 80% Alerta.
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- FILA 2: RESUMEN DE METAS DE AHORRO ESCOLAR (CONECTADO AL SEMÁFORO Y AL MENÚ METAS) -->
+                <div class="bento-card bento-metas-summary-card hover-animate">
+                    <div class="bento-meta-header">
+                        <div>
+                            <div class="meta-header-title">
+                                <span class="blue-dot"></span>
+                                <h4>METAS DE AHORRO ESCOLAR</h4>
+                            </div>
+                            <p class="bento-subtitle">Seguimiento de objetivos de ahorro personal conectado a tu saldo disponible.</p>
+                        </div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="btn-config-meta hover-animate" onclick="openModal('modal-meta')">
+                                <i class="fas fa-plus"></i> Nueva Meta
+                            </button>
+                            <button type="button" class="btn-config-meta hover-animate" onclick="activateTab('tab-metas')">
+                                Configurar Meta (<span id="dash-metas-count">0</span>)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bento-meta-body">
+                        <div class="bento-meta-name-row">
+                            <strong id="home-meta-nombre">Sin meta activa configurada</strong>
+                            <span id="home-meta-semaforo-rel" class="meta-rel-tag">Ahorro respaldado por tu saldo</span>
+                        </div>
+
+                        <div class="bento-progress-track">
+                            <div id="home-meta-bar" class="bento-progress-fill" style="width: 0%;"></div>
+                        </div>
+
+                        <div class="bento-meta-footer">
+                            <span id="home-meta-progreso-texto">Crea una meta en el menú "Metas de Ahorro" para monitorear cuánto te falta para comprarte lo que deseas.</span>
+                            <strong id="home-meta-montos" class="bento-meta-numbers">Bs 0.00 / Bs 0.00</strong>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Tarjetas de Resumen Financiero (Grid 2x2) -->
-                <div class="summary-cards-grid">
-                    <div class="card card-income">
-                        <div class="icon-circle"><i class="fas fa-arrow-down"></i></div>
-                        <div>
-                            <span>Total Ingresos</span>
-                            <h4 id="dash-ingresos">Bs. 0.00</h4>
+                <!-- FILA 3: ASESOR ÉTICO AUTOMATIZADO -->
+                <div class="bento-card bento-asesor-card hover-animate">
+                    <div class="asesor-left">
+                        <div class="asesor-icon-box">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="asesor-content">
+                            <div class="asesor-title-row">
+                                <strong>ASESOR ÉTICO AUTOMATIZADO</strong>
+                                <span id="asesor-badge" class="asesor-active-pill">ACTIVO</span>
+                            </div>
+                            <p id="asesor-mensaje">
+                                Registra tus ingresos y gastos escolares para recibir recomendaciones sobre tu presupuesto y metas de ahorro.
+                            </p>
                         </div>
                     </div>
-                    <div class="card card-expense">
-                        <div class="icon-circle"><i class="fas fa-arrow-up"></i></div>
-                        <div>
-                            <span>Total Gastos</span>
-                            <h4 id="dash-gastos">Bs. 0.00</h4>
-                            <small id="dash-gastos-escolares-sub" class="card-subtext">Colegio: Bs. 0.00</small>
-                        </div>
-                    </div>
-                    <div class="card card-balance" id="card-saldo-box">
-                        <div class="icon-circle"><i class="fas fa-coins"></i></div>
-                        <div>
-                            <span>Saldo Disponible</span>
-                            <h4 id="dash-saldo">Bs. 0.00</h4>
-                            <small id="dash-saldo-estado" class="card-subtext">Saldo positivo</small>
-                        </div>
-                    </div>
-                    <div class="card card-savings-goal">
-                        <div class="icon-circle"><i class="fas fa-piggy-bank"></i></div>
-                        <div>
-                            <span>Ahorro en Metas</span>
-                            <h4 id="dash-metas-ahorro">Bs. 0.00</h4>
-                            <small id="dash-metas-count" class="card-subtext">0 metas activas</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Botones de Acción Rápida -->
-                <div class="quick-actions-grid">
-                    <button class="btn btn-secondary" onclick="openModal('modal-ingreso')">
-                        <i class="fas fa-plus-circle"></i> Nuevo Ingreso
+                    <button type="button" class="btn-link-funciones hover-animate" onclick="irAReporteMensualImprimible()">
+                        Ver Reporte Mensual <i class="fas fa-arrow-right"></i>
                     </button>
-                    <button class="btn btn-danger" onclick="openModal('modal-gasto')">
-                        <i class="fas fa-minus-circle"></i> Nuevo Gasto
-                    </button>
-                    <button class="btn btn-accent" onclick="openGastoEscolarModal()">
-                        <i class="fas fa-school"></i> Gasto del Colegio
-                    </button>
-                    <button class="btn btn-primary" onclick="openModal('modal-meta')">
-                        <i class="fas fa-bullseye"></i> Nueva Meta
-                    </button>
                 </div>
 
-                <!-- SECCIÓN: META DE AHORRO PERSONAL DEL ESTUDIANTE -->
-                <div class="panel-section-card metas-personal-panel">
-                    <div class="section-header">
-                        <div>
-                            <h3><i class="fas fa-bullseye"></i> Mi Meta de Ahorro Personal</h3>
-                            <p class="section-subtitle">Pon el dinero y lo que quieres comprarte. ¡Cuando lo completes puedes borrarlo del panel!</p>
-                        </div>
-                        <button class="btn btn-primary btn-sm" onclick="openModal('modal-meta')">
-                            <i class="fas fa-plus"></i> Nueva Meta
-                        </button>
-                    </div>
-
-                    <div id="list-metas-activas" class="metas-grid">
-                        <!-- Cargado dinámicamente con JS -->
-                    </div>
-                </div>
-
-                <!-- SECCIÓN: PANEL DE TODAS LAS METAS QUE TUVO EL ESTUDIANTE (PARA EL REPORTE MENSUAL) -->
-                <div class="panel-section-card metas-history-panel">
-                    <div class="section-header">
-                        <div>
-                            <h3><i class="fas fa-trophy"></i> Todas las Metas del Estudiante</h3>
-                            <p class="section-subtitle">Historial completo de tus metas (activas y completadas) que se incluye en tu reporte mensual.</p>
-                        </div>
-                        <span id="badge-resumen-metas" class="meta-summary-badge">0 completadas</span>
-                    </div>
-
-                    <div id="list-metas-historial" class="list-container">
-                        <!-- Cargado dinámicamente con JS -->
-                    </div>
-                </div>
             </section>
 
             <!-- =============================================================== -->
@@ -228,12 +295,15 @@
             <!-- =============================================================== -->
             <section id="tab-ingresos" class="tab-content">
                 <div class="section-header">
-                    <h3><i class="fas fa-piggy-bank"></i> Mis Ingresos</h3>
-                    <button class="btn btn-primary btn-sm" onclick="openModal('modal-ingreso')">
-                        <i class="fas fa-plus"></i> Registrar
+                    <div>
+                        <h3><i class="fas fa-piggy-bank"></i> Mis Ingresos</h3>
+                        <p class="section-subtitle">Mesadas, regalos, premios o ingresos de fin de semana que aumentan tu saldo disponible.</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm hover-animate" onclick="openModal('modal-ingreso')">
+                        <i class="fas fa-plus"></i> Registrar Ingreso
                     </button>
                 </div>
-                <div class="list-container" id="list-ingresos">
+                <div class="list-container grid-list-desktop" id="list-ingresos">
                     <!-- Dinámico con JS -->
                 </div>
             </section>
@@ -243,18 +313,88 @@
             <!-- =============================================================== -->
             <section id="tab-gastos" class="tab-content">
                 <div class="section-header">
-                    <h3><i class="fas fa-shopping-cart"></i> Mis Gastos</h3>
-                    <button class="btn btn-danger btn-sm" onclick="openModal('modal-gasto')">
-                        <i class="fas fa-plus"></i> Registrar
+                    <div>
+                        <h3><i class="fas fa-shopping-cart"></i> Mis Gastos</h3>
+                        <p class="section-subtitle">Gastos personales y cotidianos que impactan tu Semáforo Financiero.</p>
+                    </div>
+                    <button class="btn btn-danger btn-sm hover-animate" onclick="openModal('modal-gasto')">
+                        <i class="fas fa-plus"></i> Registrar Gasto
                     </button>
                 </div>
-                <div class="list-container" id="list-gastos">
+                <div class="list-container grid-list-desktop" id="list-gastos">
                     <!-- Dinámico con JS -->
                 </div>
             </section>
 
             <!-- =============================================================== -->
-            <!-- TAB 4: CALENDARIO ESCOLAR (GASTOS SOLO DEL COLEGIO)             -->
+            <!-- TAB 4: MENÚ DE METAS DE AHORRO PERSONAL E HISTORIAL             -->
+            <!-- =============================================================== -->
+            <section id="tab-metas" class="tab-content">
+                <div class="section-header">
+                    <div>
+                        <h3><i class="fas fa-bullseye"></i> Metas de Ahorro Personal</h3>
+                        <p class="section-subtitle">Pon el dinero y lo que quieres comprarte. ¡Cuando lo completes lo puedes borrar del panel activo!</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm hover-animate" onclick="openModal('modal-meta')">
+                        <i class="fas fa-plus"></i> Nueva Meta
+                    </button>
+                </div>
+
+                <!-- Resumen rápido del menú de Metas -->
+                <div class="report-summary-box hover-animate">
+                    <div class="report-metric">
+                        <span>Metas Activas:</span>
+                        <strong id="metas-tab-activas-count" class="text-blue">0</strong>
+                    </div>
+                    <div class="report-metric">
+                        <span>Metas Completadas:</span>
+                        <strong id="metas-tab-completadas-count" class="text-green">0</strong>
+                    </div>
+                    <div class="report-metric">
+                        <span>Ahorrado en Metas:</span>
+                        <strong id="metas-tab-total-ahorrado" class="text-amber">Bs 0.00</strong>
+                    </div>
+                    <div class="report-metric">
+                        <span>Saldo Acumulable:</span>
+                        <strong id="dash-metas-ahorro" class="text-green">Bs 0.00</strong>
+                    </div>
+                </div>
+
+                <!-- Grid 2 columnas en PC para que no haya áreas vacías -->
+                <div class="metas-two-col-layout">
+                    <!-- SECCIÓN 1: METAS ACTIVAS DEL ESTUDIANTE -->
+                    <div class="panel-section-card metas-personal-panel hover-animate">
+                        <div class="section-header">
+                            <div>
+                                <h4><i class="fas fa-piggy-bank"></i> Mis Metas Activas</h4>
+                                <p class="section-subtitle">Abona dinero a tus metas y bórralas de aquí cuando las hayas completado.</p>
+                            </div>
+                        </div>
+
+                        <div id="list-metas-activas" class="metas-grid">
+                            <!-- Cargado dinámicamente con JS -->
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN 2: PANEL DE TODAS LAS METAS QUE TUVO EL ESTUDIANTE (PARA EL REPORTE MENSUAL) -->
+                    <div class="panel-section-card metas-history-panel hover-animate">
+                        <div class="section-header">
+                            <div>
+                                <h4><i class="fas fa-trophy"></i> Panel de Todas las Metas del Estudiante</h4>
+                                <p class="section-subtitle">Historial completo de todas las metas que tuviste (incluidas en tu Reporte Mensual).</p>
+                            </div>
+                            <span id="badge-resumen-metas" class="meta-summary-badge">0 completadas</span>
+                        </div>
+
+                        <div id="list-metas-historial" class="list-container">
+                            <!-- Cargado dinámicamente con JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =============================================================== -->
+            <!-- TAB 5: CALENDARIO ESCOLAR (GASTOS SOLO DEL COLEGIO)             -->
             <!-- =============================================================== -->
             <section id="tab-calendario" class="tab-content">
                 <div class="section-header">
@@ -262,13 +402,13 @@
                         <h3><i class="fas fa-calendar-alt"></i> Calendario Escolar</h3>
                         <p class="section-subtitle">Anota aquí los gastos exclusivos del colegio para cada día (ej. Fotocopias, materiales, recreo).</p>
                     </div>
-                    <button class="btn btn-accent btn-sm" onclick="openGastoEscolarModal()">
-                        <i class="fas fa-plus"></i> Anotar Gasto
+                    <button class="btn btn-accent btn-sm hover-animate" onclick="openGastoEscolarModal()">
+                        <i class="fas fa-plus"></i> Anotar Gasto Escolar
                     </button>
                 </div>
 
                 <!-- Resumen del Calendario Escolar del Mes -->
-                <div class="report-summary-box calendar-summary-box">
+                <div class="report-summary-box calendar-summary-box hover-animate">
                     <div class="report-metric">
                         <span>Gasto Escolar del Mes:</span>
                         <strong id="cal-total-mes" class="text-red">Bs. 0.00</strong>
@@ -283,102 +423,109 @@
                     </div>
                 </div>
 
-                <!-- Tarjeta del Calendario Mensual Interactivo -->
-                <div class="calendar-card">
-                    <div class="calendar-header-nav">
-                        <button type="button" class="btn-cal-nav" onclick="cambiarMesCalendario(-1)" title="Mes anterior">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <div class="calendar-month-title">
-                            <h4 id="calendar-month-label">Noviembre 2026</h4>
-                            <button type="button" class="btn-cal-today" onclick="irAHoyCalendario()">Ir a Hoy</button>
+                <!-- Layout 2 Columnas en PC para Calendario + Gráfico/Detalles -->
+                <div class="calendar-two-col-layout">
+                    <!-- Columna Izquierda: Cuadrícula del Calendario Mensual -->
+                    <div>
+                        <div class="calendar-card hover-animate">
+                            <div class="calendar-header-nav">
+                                <button type="button" class="btn-cal-nav hover-animate" onclick="cambiarMesCalendario(-1)" title="Mes anterior">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <div class="calendar-month-title">
+                                    <h4 id="calendar-month-label">Noviembre 2026</h4>
+                                    <button type="button" class="btn-cal-today" onclick="irAHoyCalendario()">Ir a Hoy</button>
+                                </div>
+                                <button type="button" class="btn-cal-nav hover-animate" onclick="cambiarMesCalendario(1)" title="Mes siguiente">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+
+                            <div class="calendar-weekdays">
+                                <div>Lun</div>
+                                <div>Mar</div>
+                                <div>Mié</div>
+                                <div>Jue</div>
+                                <div>Vie</div>
+                                <div>Sáb</div>
+                                <div>Dom</div>
+                            </div>
+
+                            <div id="calendar-grid" class="calendar-days-grid">
+                                <!-- Celdas generadas dinámicamente por JS -->
+                            </div>
                         </div>
-                        <button type="button" class="btn-cal-nav" onclick="cambiarMesCalendario(1)" title="Mes siguiente">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+
+                        <!-- Detalle de gastos del día seleccionado en el colegio -->
+                        <div class="panel-section-card hover-animate">
+                            <div class="section-header">
+                                <h4 id="cal-day-detail-title"><i class="fas fa-clipboard-list"></i> Gastos en el Colegio del Día</h4>
+                                <button type="button" class="btn btn-primary btn-sm hover-animate" onclick="openGastoEscolarModal(calendarState.selectedDate)">
+                                    <i class="fas fa-plus"></i> Agregar en este día
+                                </button>
+                            </div>
+                            <div id="list-gastos-escolares-dia" class="list-container">
+                                <!-- Dinámico con JS -->
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="calendar-weekdays">
-                        <div>Lun</div>
-                        <div>Mar</div>
-                        <div>Mié</div>
-                        <div>Jue</div>
-                        <div>Vie</div>
-                        <div>Sáb</div>
-                        <div>Dom</div>
-                    </div>
+                    <!-- Columna Derecha: Gráfico Animado + Lista Mensual -->
+                    <div>
+                        <div class="chart-wrapper hover-animate">
+                            <h4><i class="fas fa-chart-bar"></i> Gráfico de Gastos en el Colegio por Tipo (Mes)</h4>
+                            <div class="canvas-box">
+                                <canvas id="schoolCalendarChart"></canvas>
+                            </div>
+                        </div>
 
-                    <div id="calendar-grid" class="calendar-days-grid">
-                        <!-- Celdas generadas dinámicamente por JS -->
-                    </div>
-                </div>
-
-                <!-- Detalle de gastos del día seleccionado en el colegio -->
-                <div class="panel-section-card">
-                    <div class="section-header">
-                        <h4 id="cal-day-detail-title"><i class="fas fa-clipboard-list"></i> Gastos en el Colegio del Día</h4>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openGastoEscolarModal(calendarState.selectedDate)">
-                            <i class="fas fa-plus"></i> Agregar en este día
-                        </button>
-                    </div>
-                    <div id="list-gastos-escolares-dia" class="list-container">
-                        <!-- Dinámico con JS -->
-                    </div>
-                </div>
-
-                <!-- Gráfico Animado de Gastos del Colegio por Tipo -->
-                <div class="chart-wrapper">
-                    <h4><i class="fas fa-chart-bar"></i> Gráfico de Gastos en el Colegio por Tipo (Mes)</h4>
-                    <div class="canvas-box">
-                        <canvas id="schoolCalendarChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Lista completa de gastos escolares del mes -->
-                <div class="panel-section-card">
-                    <h4><i class="fas fa-list-ul"></i> Todos los Gastos del Colegio en este Mes</h4>
-                    <div id="list-gastos-escolares-mes" class="list-container" style="margin-top:10px;">
-                        <!-- Dinámico con JS -->
+                        <div class="panel-section-card hover-animate">
+                            <h4><i class="fas fa-list-ul"></i> Todos los Gastos del Colegio en este Mes</h4>
+                            <div id="list-gastos-escolares-mes" class="list-container" style="margin-top:10px;">
+                                <!-- Dinámico con JS -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
             <!-- =============================================================== -->
-            <!-- TAB 5: REPORTES Y REPORTE MENSUAL IMPRIMIBLE                    -->
+            <!-- TAB 6: REPORTES, GRÁFICOS Y REPORTE MENSUAL IMPRIMIBLE          -->
             <!-- =============================================================== -->
             <section id="tab-reportes" class="tab-content">
                 <div class="section-header no-print">
-                    <h3><i class="fas fa-chart-pie"></i> Reportes y Análisis</h3>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="imprimirReporteMensual()">
+                    <div>
+                        <h3><i class="fas fa-chart-pie"></i> Reportes, Gráficos y Reporte Mensual</h3>
+                        <p class="section-subtitle">Analiza tus estadísticas por período e imprime el reporte completo de todo lo que hiciste en el mes.</p>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm hover-animate" onclick="imprimirReporteMensual()">
                         <i class="fas fa-print"></i> Imprimir Reporte Mensual
                     </button>
                 </div>
 
-                <!-- Filtro por Día, Semana, Mes o Todo (No se imprime en la hoja) -->
-                <div class="report-filter-card no-print">
+                <!-- Filtro por Día, Semana, Mes o Todo -->
+                <div class="report-filter-card no-print hover-animate">
                     <div class="filter-pills">
-                        <button type="button" class="filter-pill" data-period="dia">
+                        <button type="button" class="filter-pill hover-animate" data-period="dia">
                             <i class="fas fa-calendar-day"></i> Día
                         </button>
-                        <button type="button" class="filter-pill" data-period="semana">
+                        <button type="button" class="filter-pill hover-animate" data-period="semana">
                             <i class="fas fa-calendar-week"></i> Semanal
                         </button>
-                        <button type="button" class="filter-pill active" data-period="mes">
+                        <button type="button" class="filter-pill active hover-animate" data-period="mes">
                             <i class="fas fa-calendar-alt"></i> Mes
                         </button>
-                        <button type="button" class="filter-pill" data-period="todo">
+                        <button type="button" class="filter-pill hover-animate" data-period="todo">
                             <i class="fas fa-history"></i> Todo
                         </button>
                     </div>
 
                     <div class="filter-inputs-row">
-                        <!-- Control específico para Día -->
                         <div id="filter-control-dia" class="filter-control" style="display:none;">
                             <label for="report-filter-fecha"><i class="fas fa-calendar"></i> Seleccionar día:</label>
                             <input type="date" id="report-filter-fecha">
                         </div>
 
-                        <!-- Control específico para Semana -->
                         <div id="filter-control-semana" class="filter-control" style="display:none;">
                             <label><i class="fas fa-calendar-week"></i> Semana actual:</label>
                             <div class="semana-selector-wrap">
@@ -387,25 +534,21 @@
                             </div>
                         </div>
 
-                        <!-- Control específico para Mes -->
                         <div id="filter-control-mes" class="filter-control">
                             <label for="report-filter-mes"><i class="fas fa-calendar-alt"></i> Mes del reporte:</label>
                             <input type="month" id="report-filter-mes">
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="imprimirReporteMensual()">
+                            <button type="button" class="btn btn-secondary btn-sm hover-animate" onclick="imprimirReporteMensual()">
                                 <i class="fas fa-print"></i> Imprimir Todo el Mes
                             </button>
                         </div>
 
-                        <!-- Información para Todo -->
                         <div id="filter-control-todo" class="filter-control" style="display:none;">
                             <span class="todo-info-badge"><i class="fas fa-info-circle"></i> Mostrando historial acumulado completo</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- =========================================================== -->
-                <!-- ENCABEZADO EXCLUSIVO DE IMPRESIÓN DEL REPORTE MENSUAL       -->
-                <!-- =========================================================== -->
+                <!-- ENCABEZADO EXCLUSIVO DE IMPRESIÓN DEL REPORTE MENSUAL -->
                 <div id="print-report-header" class="print-only-header">
                     <div class="print-brand-row">
                         <img src="/img/logo.jpg" alt="FinanzGagnon" class="print-logo">
@@ -423,7 +566,7 @@
                 </div>
 
                 <!-- Resumen de montos según el período seleccionado -->
-                <div class="report-summary-box">
+                <div class="report-summary-box hover-animate">
                     <div class="report-metric">
                         <span>Ingresos:</span> <strong id="rep-ingresos" class="text-green">Bs. 0.00</strong>
                     </div>
@@ -438,10 +581,10 @@
                     </div>
                 </div>
 
-                <!-- GRÁFICOS DE TORTA DE NOTIFICACIONES (PRESUPUESTO Y AHORRO) -->
-                <div class="charts-notification-grid">
+                <!-- GRÁFICOS EN GRID DE 3 COLUMNAS EN PC (SIN ÁREAS VACÍAS) -->
+                <div class="charts-three-col-grid">
                     <!-- Torta 1: Presupuesto y Gastos -->
-                    <div class="chart-wrapper">
+                    <div class="chart-wrapper hover-animate">
                         <h4><i class="fas fa-wallet"></i> Estado del Presupuesto</h4>
                         <div class="canvas-box">
                             <canvas id="budgetChart"></canvas>
@@ -453,7 +596,7 @@
                     </div>
 
                     <!-- Torta 2: Meta de Ahorro -->
-                    <div class="chart-wrapper">
+                    <div class="chart-wrapper hover-animate">
                         <h4><i class="fas fa-piggy-bank"></i> Meta de Ahorro (30%)</h4>
                         <div class="canvas-box">
                             <canvas id="savingsChart"></canvas>
@@ -463,18 +606,22 @@
                             <span class="status-msg"></span>
                         </div>
                     </div>
-                </div>
 
-                <!-- Torta 3: Gastos por Categoría -->
-                <div class="chart-wrapper">
-                    <h4><i class="fas fa-chart-pie"></i> Gastos por Categoría</h4>
-                    <div class="canvas-box">
-                        <canvas id="categoryChart"></canvas>
+                    <!-- Torta 3: Gastos por Categoría -->
+                    <div class="chart-wrapper hover-animate">
+                        <h4><i class="fas fa-chart-pie"></i> Gastos por Categoría</h4>
+                        <div class="canvas-box">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                        <div class="status-strip status-neutral report-status-card">
+                            <strong class="status-title">Distribución:</strong>
+                            <span class="status-msg">Porcentaje de gasto por cada categoría escolar y personal.</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Detalle en tabla de categorías -->
-                <div class="table-container">
+                <div class="table-container hover-animate">
                     <h4><i class="fas fa-tags"></i> Detalle de Gastos por Categoría</h4>
                     <table class="report-table">
                         <thead>
@@ -490,91 +637,91 @@
                     </table>
                 </div>
 
-                <!-- =========================================================== -->
-                <!-- SECCIÓN DE REPORTE MENSUAL COMPLETO (IMPRIMIBLE)            -->
-                <!-- =========================================================== -->
+                <!-- SECCIÓN DE REPORTE MENSUAL COMPLETO (IMPRIMIBLE) -->
                 <div id="monthly-printable-section" class="monthly-report-sheet">
-                    <div class="monthly-sheet-banner">
+                    <div class="monthly-sheet-banner hover-animate">
                         <div>
                             <h4><i class="fas fa-file-invoice-dollar"></i> Detalle Completo del Mes (<span id="sheet-mes-titulo">Mes actual</span>)</h4>
                             <p class="section-subtitle">Todo lo que realizó el estudiante en el mes: ingresos, gastos, calendario escolar y metas de ahorro.</p>
                         </div>
-                        <button type="button" class="btn btn-primary btn-sm no-print" onclick="imprimirReporteMensual()">
+                        <button type="button" class="btn btn-primary btn-sm no-print hover-animate" onclick="imprimirReporteMensual()">
                             <i class="fas fa-print"></i> Imprimir / Guardar PDF
                         </button>
                     </div>
 
-                    <!-- 1. Tabla de Ingresos del Mes -->
-                    <div class="table-container">
-                        <h4><i class="fas fa-arrow-down text-green"></i> 1. Ingresos Registrados en el Mes</h4>
-                        <div class="table-scroll">
-                            <table class="report-table">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>Fuente</th>
-                                        <th>Descripción</th>
-                                        <th>Monto (Bs.)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="rep-mensual-ingresos-body"></tbody>
-                            </table>
+                    <div class="report-tables-grid">
+                        <!-- 1. Tabla de Ingresos del Mes -->
+                        <div class="table-container hover-animate">
+                            <h4><i class="fas fa-arrow-down text-green"></i> 1. Ingresos Registrados en el Mes</h4>
+                            <div class="table-scroll">
+                                <table class="report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Fuente</th>
+                                            <th>Descripción</th>
+                                            <th>Monto (Bs.)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-mensual-ingresos-body"></tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- 2. Tabla de Gastos Generales del Mes -->
-                    <div class="table-container">
-                        <h4><i class="fas fa-shopping-bag text-red"></i> 2. Gastos Generales del Mes</h4>
-                        <div class="table-scroll">
-                            <table class="report-table">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>Categoría</th>
-                                        <th>Descripción</th>
-                                        <th>Monto (Bs.)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="rep-mensual-gastos-body"></tbody>
-                            </table>
+                        <!-- 2. Tabla de Gastos Generales del Mes -->
+                        <div class="table-container hover-animate">
+                            <h4><i class="fas fa-shopping-bag text-red"></i> 2. Gastos Generales del Mes</h4>
+                            <div class="table-scroll">
+                                <table class="report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Categoría</th>
+                                            <th>Descripción</th>
+                                            <th>Monto (Bs.)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-mensual-gastos-body"></tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- 3. Tabla de Calendario Escolar (Gastos en el Colegio) del Mes -->
-                    <div class="table-container">
-                        <h4><i class="fas fa-school text-amber"></i> 3. Calendario Escolar (Gastos en el Colegio en el Mes)</h4>
-                        <div class="table-scroll">
-                            <table class="report-table">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>Tipo de Gasto Escolar</th>
-                                        <th>Detalle / Materiales</th>
-                                        <th>Monto (Bs.)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="rep-mensual-escolares-body"></tbody>
-                            </table>
+                        <!-- 3. Tabla de Calendario Escolar (Gastos en el Colegio) del Mes -->
+                        <div class="table-container hover-animate">
+                            <h4><i class="fas fa-school text-amber"></i> 3. Calendario Escolar (Gastos en el Colegio)</h4>
+                            <div class="table-scroll">
+                                <table class="report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Tipo de Gasto Escolar</th>
+                                            <th>Detalle / Materiales</th>
+                                            <th>Monto (Bs.)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-mensual-escolares-body"></tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- 4. Tabla de Todas las Metas de Ahorro del Estudiante -->
-                    <div class="table-container">
-                        <h4><i class="fas fa-bullseye text-blue"></i> 4. Panel de Todas las Metas de Ahorro del Estudiante</h4>
-                        <div class="table-scroll">
-                            <table class="report-table">
-                                <thead>
-                                    <tr>
-                                        <th>Meta Personal (Qué quiere comprarse)</th>
-                                        <th>Categoría</th>
-                                        <th>Meta (Bs.)</th>
-                                        <th>Ahorrado (Bs.)</th>
-                                        <th>Progreso</th>
-                                        <th>Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="rep-mensual-metas-body"></tbody>
-                            </table>
+                        <!-- 4. Tabla de Todas las Metas de Ahorro del Estudiante -->
+                        <div class="table-container hover-animate">
+                            <h4><i class="fas fa-bullseye text-blue"></i> 4. Panel de Todas las Metas del Estudiante</h4>
+                            <div class="table-scroll">
+                                <table class="report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Meta Personal</th>
+                                            <th>Categoría</th>
+                                            <th>Meta (Bs.)</th>
+                                            <th>Ahorrado (Bs.)</th>
+                                            <th>Progreso</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-mensual-metas-body"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -582,26 +729,30 @@
 
         </main>
 
-        <!-- Barra de Navegación Inferior con Animación -->
+        <!-- Barra de Navegación Inferior Móvil (Oculta en pantallas grandes de PC) -->
         <nav class="bottom-nav no-print">
             <button class="nav-item active" data-tab="tab-inicio">
                 <i class="fas fa-home"></i>
-                <span>Inicio</span>
+                <span>Resumen</span>
             </button>
             <button class="nav-item" data-tab="tab-ingresos">
-                <i class="fas fa-plus-circle"></i>
+                <i class="fas fa-wallet"></i>
                 <span>Ingresos</span>
             </button>
             <button class="nav-item" data-tab="tab-gastos">
-                <i class="fas fa-minus-circle"></i>
+                <i class="fas fa-receipt"></i>
                 <span>Gastos</span>
+            </button>
+            <button class="nav-item" data-tab="tab-metas">
+                <i class="fas fa-bullseye"></i>
+                <span>Metas</span>
             </button>
             <button class="nav-item" data-tab="tab-calendario">
                 <i class="fas fa-calendar-check"></i>
                 <span>Calendario</span>
             </button>
             <button class="nav-item" data-tab="tab-reportes">
-                <i class="fas fa-chart-bar"></i>
+                <i class="fas fa-chart-pie"></i>
                 <span>Reportes</span>
             </button>
         </nav>
@@ -615,15 +766,18 @@
             <header class="top-nav">
                 <div class="brand">
                     <img src="/img/logo.jpg" alt="FinanzGagnon" class="brand-logo">
-                    <span class="brand-title">FinanzGagnon <small style="font-size:12px; font-weight:normal; opacity:0.8;">Admin</small></span>
+                    <span class="brand-title">FinanzGagnon</span>
+                    <span class="etica-badge">ADMIN</span>
                 </div>
                 <div class="user-pill">
-                    <button type="button" class="btn-theme-nav" onclick="toggleTheme()" title="Cambiar entre Tema Claro y Tema Oscuro">
+                    <button type="button" class="btn-theme-nav hover-animate" onclick="toggleTheme()" title="Cambiar entre Tema Claro y Tema Oscuro">
                         <i class="fas fa-moon theme-icon"></i>
                     </button>
                     <span id="admin-display">Admin</span>
-                    <button id="btn-admin-go-pass" class="btn-top-key" title="Cambiar contraseña de administrador"><i class="fas fa-key"></i></button>
-                    <button id="btn-admin-logout" title="Cerrar sesión"><i class="fas fa-power-off"></i></button>
+                    <button id="btn-admin-go-pass" class="btn-top-key hover-animate" title="Cambiar contraseña de administrador"><i class="fas fa-key"></i></button>
+                    <button id="btn-admin-logout" class="btn-logout-pill hover-animate" title="Cerrar sesión">
+                        <i class="fas fa-sign-out-alt"></i> <span>Salir</span>
+                    </button>
                 </div>
             </header>
             <div id="admin-status-strip" class="status-strip status-neutral" role="status">
@@ -638,14 +792,14 @@
             <section id="tab-admin-estudiantes" class="tab-content active-tab">
                 <div class="section-header">
                     <h3><i class="fas fa-users"></i> Estudiantes</h3>
-                    <button class="btn btn-primary btn-sm" onclick="openEstudianteModal()">
+                    <button class="btn btn-primary btn-sm hover-animate" onclick="openEstudianteModal()">
                         <i class="fas fa-user-plus"></i> Registrar
                     </button>
                 </div>
                 <div class="form-group">
                     <input type="search" id="admin-buscar" placeholder="Buscar por nombre, usuario o curso">
                 </div>
-                <div class="list-container" id="list-admin-estudiantes"></div>
+                <div class="list-container grid-list-desktop" id="list-admin-estudiantes"></div>
             </section>
 
             <!-- TAB ADMIN 2: MONITOREO DE SEGURIDAD -->
@@ -653,24 +807,24 @@
                 <div class="section-header">
                     <h3><i class="fas fa-shield-alt"></i> Seguridad</h3>
                     <div style="display:flex; gap:8px;">
-                        <button class="btn btn-secondary btn-sm" onclick="activateTab('tab-admin-password')">
+                        <button class="btn btn-secondary btn-sm hover-animate" onclick="activateTab('tab-admin-password')">
                             <i class="fas fa-key"></i> Contraseña
                         </button>
-                        <button class="btn btn-primary btn-sm" onclick="loadSeguridad()">
+                        <button class="btn btn-primary btn-sm hover-animate" onclick="loadSeguridad()">
                             <i class="fas fa-sync-alt"></i> Actualizar
                         </button>
                     </div>
                 </div>
                 <div class="metric-grid" id="admin-metricas"></div>
-                <div class="table-container">
+                <div class="table-container hover-animate">
                     <h4>Controles de seguridad</h4>
                     <div id="admin-controles"></div>
                 </div>
-                <div class="table-container" id="admin-bloqueadas-box" style="display:none;">
+                <div class="table-container hover-animate" id="admin-bloqueadas-box" style="display:none;">
                     <h4>Cuentas bloqueadas</h4>
                     <div id="admin-bloqueadas"></div>
                 </div>
-                <div class="table-container">
+                <div class="table-container hover-animate">
                     <h4>Bitácora de eventos (últimos 50)</h4>
                     <div class="table-scroll">
                         <table class="report-table">
@@ -688,9 +842,9 @@
                 <div class="section-header">
                     <h3><i class="fas fa-database"></i> Copias de seguridad</h3>
                 </div>
-                <div class="table-container">
+                <div class="table-container hover-animate">
                     <p class="muted-text">Descarga un archivo <strong>.sql</strong> con la estructura y todos los datos del sistema. Para restaurarlo, impórtalo en MySQL.</p>
-                    <button class="btn btn-primary btn-block" id="btn-backup">
+                    <button class="btn btn-primary btn-block hover-animate" id="btn-backup">
                         <i class="fas fa-download"></i> Generar y descargar backup
                     </button>
                     <p class="muted-text" id="backup-info" style="margin-top:10px;"></p>
@@ -702,7 +856,7 @@
                 <div class="section-header">
                     <h3><i class="fas fa-user-shield"></i> Contraseña de Administrador</h3>
                 </div>
-                <div class="table-container">
+                <div class="table-container hover-animate">
                     <div class="admin-account-banner">
                         <div class="icon-circle"><i class="fas fa-user-lock"></i></div>
                         <div>
@@ -742,7 +896,7 @@
                             </div>
                         </div>
                         <div id="admin-pass-msg" class="alert-error" style="display:none;"></div>
-                        <button type="submit" class="btn btn-secondary btn-block">
+                        <button type="submit" class="btn btn-secondary btn-block hover-animate">
                             <i class="fas fa-save"></i> Actualizar contraseña de administrador
                         </button>
                     </form>
@@ -750,7 +904,7 @@
             </section>
         </main>
 
-        <nav class="bottom-nav">
+        <nav class="bottom-nav admin-bottom-nav">
             <button class="nav-item active" data-tab="tab-admin-estudiantes">
                 <i class="fas fa-users"></i>
                 <span>Estudiantes</span>
@@ -800,7 +954,7 @@
                     <input type="password" id="est-password" minlength="6" autocomplete="new-password">
                 </div>
                 <div id="est-error" class="alert-error" style="display:none;"></div>
-                <button type="submit" class="btn btn-primary btn-block">Guardar</button>
+                <button type="submit" class="btn btn-primary btn-block hover-animate">Guardar</button>
             </form>
         </div>
     </div>
@@ -829,7 +983,7 @@
                     <label>Descripción / Detalle</label>
                     <input type="text" id="ingreso-desc" placeholder="Detalle opcional">
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Guardar Ingreso</button>
+                <button type="submit" class="btn btn-primary btn-block hover-animate">Guardar Ingreso</button>
             </form>
         </div>
     </div>
@@ -852,7 +1006,6 @@
                     <label>Monto gastado (Bs.)</label>
                     <input type="number" step="0.50" min="0.50" id="gasto-monto" placeholder="Ej: 15.00" required>
                 </div>
-                <!-- Aviso en vivo si el monto supera el saldo disponible -->
                 <div id="gasto-inline-warning" class="alert-error" style="display:none;"></div>
                 <div class="form-group">
                     <label>Fecha</label>
@@ -862,7 +1015,7 @@
                     <label>Descripción del gasto</label>
                     <input type="text" id="gasto-desc" placeholder="Ej: Empanada y refresco">
                 </div>
-                <button type="submit" class="btn btn-danger btn-block">Guardar Gasto</button>
+                <button type="submit" class="btn btn-danger btn-block hover-animate">Guardar Gasto</button>
             </form>
         </div>
     </div>
@@ -877,7 +1030,7 @@
             <form id="form-meta">
                 <div class="form-group">
                     <label>¿Qué quieres comprarte?</label>
-                    <input type="text" id="meta-titulo" placeholder="Ej: Audífonos Bluetooth, Zapatillas, Pelota" required maxlength="120">
+                    <input type="text" id="meta-titulo" placeholder="Ej: Celular, Audífonos Bluetooth, Pelota" required maxlength="120">
                 </div>
                 <div class="form-group">
                     <label>Categoría personal</label>
@@ -893,15 +1046,15 @@
                 </div>
                 <div class="form-group">
                     <label>¿Cuánto cuesta? (Meta en Bs.)</label>
-                    <input type="number" step="0.50" min="1" id="meta-objetivo" placeholder="Ej: 180.00" required>
+                    <input type="number" step="0.50" min="1" id="meta-objetivo" placeholder="Ej: 800.00" required>
                 </div>
                 <div class="form-group">
-                    <label>¿Cuánto dinero quieres poner ahora? (Bs.)</label>
-                    <input type="number" step="0.50" min="0" id="meta-ahorrado-inicial" placeholder="Ej: 50.00 (o 0 para empezar)" value="0">
+                    <label>¿Cuánto dinero quieres abonar ahora? (Bs. - Opcional)</label>
+                    <input type="number" step="0.50" min="0" id="meta-ahorrado-inicial" placeholder="Deja 0 para calcular con tu Saldo Disponible" value="0">
                 </div>
                 <div id="meta-inline-warning" class="alert-error" style="display:none;"></div>
-                <button type="submit" class="btn btn-primary btn-block">
-                    <i class="fas fa-piggy-bank"></i> Crear Meta de Ahorro
+                <button type="submit" class="btn btn-primary btn-block hover-animate">
+                    <i class="fas fa-piggy-bank"></i> Guardar Meta de Ahorro
                 </button>
             </form>
         </div>
@@ -925,7 +1078,7 @@
                     <input type="number" step="0.50" min="0.50" id="abonar-meta-monto" placeholder="Ej: 20.00" required>
                 </div>
                 <div id="abonar-inline-warning" class="alert-error" style="display:none;"></div>
-                <button type="submit" class="btn btn-secondary btn-block">
+                <button type="submit" class="btn btn-secondary btn-block hover-animate">
                     <i class="fas fa-plus-circle"></i> Guardar Abono
                 </button>
             </form>
@@ -965,7 +1118,7 @@
                     <label>¿Para qué materia o actividad? (Detalle)</label>
                     <input type="text" id="escolar-desc" placeholder="Ej: Fotocopias de Matemáticas, Cartulina para Biología" required>
                 </div>
-                <button type="submit" class="btn btn-accent btn-block">
+                <button type="submit" class="btn btn-accent btn-block hover-animate">
                     <i class="fas fa-calendar-plus"></i> Guardar en Calendario Escolar
                 </button>
             </form>
@@ -988,16 +1141,16 @@
                 <div class="faltante-row"><span>Te faltan:</span> <strong id="alerta-val-faltante">Bs. 0.00</strong></div>
             </div>
             <div class="alert-modal-actions">
-                <button type="button" class="btn btn-primary btn-block" onclick="closeModal('modal-alerta-saldo')">
+                <button type="button" class="btn btn-primary btn-block hover-animate" onclick="closeModal('modal-alerta-saldo')">
                     <i class="fas fa-arrow-left"></i> Entendido, ajustar monto
                 </button>
-                <button type="button" id="btn-forzar-saldo-negativo" class="btn btn-outline-danger btn-block" style="margin-top:8px;">
+                <button type="button" id="btn-forzar-saldo-negativo" class="btn btn-outline-danger btn-block hover-animate" style="margin-top:8px;">
                     <i class="fas fa-exclamation-circle"></i> Registrar de todas formas (Saldo en negativo)
                 </button>
             </div>
         </div>
     </div>
 
-    <script src="/js/app.js?v=2"></script>
+    <script src="/js/app.js?v=4"></script>
 </body>
 </html>

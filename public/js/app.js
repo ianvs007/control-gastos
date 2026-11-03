@@ -193,6 +193,7 @@ const RUTAS = {
     '/inicio': 'tab-inicio',
     '/ingresos': 'tab-ingresos',
     '/gastos': 'tab-gastos',
+    '/metas': 'tab-metas',
     '/calendario': 'tab-calendario',
     '/reportes': 'tab-reportes',
     '/admin/estudiantes': 'tab-admin-estudiantes',
@@ -219,8 +220,8 @@ function activateTab(tabId, { historial = 'push' } = {}) {
     if (!tab) return;
     const screen = tab.closest('.view');
 
-    // Marca el botón activo en la barra inferior
-    screen.querySelectorAll('.bottom-nav .nav-item').forEach(b =>
+    // Marca el botón activo tanto en la barra superior de PC como en la barra inferior móvil
+    screen.querySelectorAll('.bottom-nav .nav-item, .top-tabs-bar .nav-item').forEach(b =>
         b.classList.toggle('active', b.getAttribute('data-tab') === tabId));
 
     // Oculta todas las pestañas y activa con animación la seleccionada
@@ -251,10 +252,15 @@ function showApp(estudiante) {
     document.getElementById('admin-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'block';
 
-    // Muestra el nombre del estudiante y su curso
-    document.getElementById('user-display').innerText = estudiante.nombre.split(' ')[0];
-    document.getElementById('welcome-msg').innerText = `¡Hola, ${estudiante.nombre}!`;
-    document.getElementById('course-msg').innerText = `Curso: ${estudiante.curso || 'Estudiante'}`;
+    // Muestra el nombre del estudiante y su curso en el header y en el panel de bienvenida
+    const primerNombre = (estudiante.nombre || 'Estudiante').split(' ')[0];
+    document.getElementById('user-display').innerText = primerNombre;
+    const courseHeader = document.getElementById('user-course-header');
+    if (courseHeader) courseHeader.innerText = estudiante.curso || 'Estudiante';
+
+    document.getElementById('welcome-msg').innerText = `¡Bienvenido/a, ${primerNombre}!`;
+    document.getElementById('course-msg').innerText =
+        `Monitoreo responsable de tus ingresos y egresos escolares (${estudiante.curso || 'Curso General'}).`;
 
     const tab = tabInicial('app-screen', 'tab-inicio');
     activateTab(tab, { historial: 'replace' });
@@ -345,9 +351,10 @@ document.getElementById('form-registro').addEventListener('submit', async (e) =>
 // 3. NAVEGACIÓN INFERIOR (MENÚ CON ANIMACIÓN)
 // =============================================================================
 const TAB_LOADERS = {
-    'tab-inicio': () => { loadDashboard(); loadMetas(); },
+    'tab-inicio': () => loadDashboard(),
     'tab-ingresos': () => loadIngresos(),
     'tab-gastos': () => loadGastos(),
+    'tab-metas': () => { loadDashboard(); loadMetas(); },
     'tab-calendario': () => loadCalendarioEscolar(),
     'tab-reportes': () => loadReportes(),
     'tab-admin-estudiantes': () => loadAdminEstudiantes(),
@@ -357,7 +364,7 @@ const TAB_LOADERS = {
 };
 
 function setupNavigation() {
-    document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
+    document.querySelectorAll('.bottom-nav .nav-item, .top-tabs-bar .nav-item').forEach(btn => {
         btn.addEventListener('click', () => activateTab(btn.getAttribute('data-tab')));
     });
 }
@@ -386,38 +393,174 @@ function setDefaultDates() {
 }
 
 // =============================================================================
-// 5. SISTEMA DE ALERTA DE SALDO INSUFICIENTE Y PANEL DEL ESTUDIANTE
+// 5. SISTEMA DE ALERTA DE SALDO INSUFICIENTE, SEMÁFORO Y PANEL DEL ESTUDIANTE
 // =============================================================================
 async function loadDashboard() {
     try {
-        const res = await fetch('/api/resumen');
-        const data = await res.json();
+        const [resResumen, resMetas] = await Promise.all([
+            fetch('/api/resumen'),
+            fetch('/api/metas')
+        ]);
+        const data = await resResumen.json();
+        const metasData = await resMetas.json();
+        metasCache = metasData;
 
         saldoGlobalDisponible = Number(data.saldoDisponible || 0);
         totalIngresosGlobal = Number(data.totalIngresos || 0);
 
-        document.getElementById('dash-ingresos').innerText = `Bs. ${data.totalIngresos.toFixed(2)}`;
-        document.getElementById('dash-gastos').innerText = `Bs. ${data.totalGastos.toFixed(2)}`;
-        document.getElementById('dash-saldo').innerText = `Bs. ${data.saldoDisponible.toFixed(2)}`;
+        document.getElementById('dash-ingresos').innerText = `Bs ${data.totalIngresos.toFixed(2)}`;
+        document.getElementById('dash-gastos').innerText = `Bs ${data.totalGastos.toFixed(2)}`;
+        document.getElementById('dash-saldo').innerText = `Bs ${data.saldoDisponible.toFixed(2)}`;
 
         const subEscolar = document.getElementById('dash-gastos-escolares-sub');
         if (subEscolar) {
-            subEscolar.innerText = `Colegio: Bs. ${(data.totalGastosEscolares || 0).toFixed(2)}`;
+            subEscolar.innerText = `Colegio: Bs ${(data.totalGastosEscolares || 0).toFixed(2)}`;
         }
 
         const dashMetasAhorro = document.getElementById('dash-metas-ahorro');
         if (dashMetasAhorro) {
-            dashMetasAhorro.innerText = `Bs. ${(data.totalAhorradoMetas || 0).toFixed(2)}`;
+            dashMetasAhorro.innerText = `Bs ${Math.max(data.saldoDisponible, 0).toFixed(2)}`;
         }
         const dashMetasCount = document.getElementById('dash-metas-count');
         if (dashMetasCount) {
-            const cant = data.cantidadMetasActivas || 0;
-            dashMetasCount.innerText = `${cant} meta${cant === 1 ? '' : 's'} activa${cant === 1 ? '' : 's'}`;
+            dashMetasCount.innerText = `${data.cantidadMetasActivas || 0}`;
         }
 
         actualizarEstadoVisualSaldo(data.saldoDisponible, data.totalIngresos, data.totalGastos);
+        actualizarSemaforoYMetaResumen(data, metasData);
     } catch (e) {
         console.error("Error al cargar balances:", e);
+    }
+}
+
+// Conecta la lógica de negocio entre Ingresos, Gastos, Semáforo Financiero, Metas de Ahorro y Asesor Ético
+function actualizarSemaforoYMetaResumen(balance, metasData) {
+    const totalIngresos = Number(balance.totalIngresos || 0);
+    const totalGastos = Number(balance.totalGastos || 0);
+    const saldoDisponible = Number(balance.saldoDisponible || 0);
+
+    // 1. Cálculo del % de Presupuesto Ejecutado para el Semáforo Financiero
+    // Criterio del modelo: Verde < 70% | Amarillo 70-80% | Rojo >= 80% Alerta
+    let pctEjecutado = 0;
+    if (totalIngresos > 0) {
+        pctEjecutado = (totalGastos / totalIngresos) * 100;
+    } else if (totalGastos > 0) {
+        pctEjecutado = 100;
+    }
+
+    const semBadge = document.getElementById('semaforo-badge');
+    const semBox = document.getElementById('semaforo-box');
+    const semTitulo = document.getElementById('semaforo-titulo');
+    const semDetalle = document.getElementById('semaforo-detalle');
+    const asesorMsg = document.getElementById('asesor-mensaje');
+
+    let nivelSemaforo = 'verde';
+    if (totalIngresos <= 0 && totalGastos <= 0) {
+        nivelSemaforo = 'verde';
+        if (semBadge) { semBadge.className = 'semaforo-status-pill pill-optimo'; semBadge.innerText = 'INICIAL'; }
+        if (semBox) semBox.className = 'semaforo-indicator-box semaforo-verde hover-animate';
+        if (semTitulo) semTitulo.innerText = 'Verde - Sin Gastos Registrados';
+        if (semDetalle) semDetalle.innerText = 'Presupuesto ejecutado: 0.0%. Registra tus ingresos escolares.';
+        if (asesorMsg) {
+            asesorMsg.innerText = 'Registra tu mesada o ingresos escolares para activar el monitoreo del Semáforo Financiero y tus metas de ahorro.';
+        }
+    } else if (pctEjecutado < 70 && saldoDisponible >= 0) {
+        nivelSemaforo = 'verde';
+        if (semBadge) { semBadge.className = 'semaforo-status-pill pill-optimo'; semBadge.innerText = 'ÓPTIMO'; }
+        if (semBox) semBox.className = 'semaforo-indicator-box semaforo-verde hover-animate';
+        if (semTitulo) semTitulo.innerText = 'Verde - Gestión Óptima';
+        if (semDetalle) semDetalle.innerText = `Presupuesto ejecutado: ${pctEjecutado.toFixed(1)}%. Estado saludable.`;
+        if (asesorMsg) {
+            asesorMsg.innerText = `¡Excelente gestión! Has consumido únicamente el ${pctEjecutado.toFixed(1)}% de tus fondos. Dispones de Bs ${Math.max(saldoDisponible, 0).toFixed(2)} acumulables para ahorro.`;
+        }
+    } else if (pctEjecutado < 80 && saldoDisponible >= 0) {
+        nivelSemaforo = 'amarillo';
+        if (semBadge) { semBadge.className = 'semaforo-status-pill pill-precaucion'; semBadge.innerText = 'PRECAUCIÓN'; }
+        if (semBox) semBox.className = 'semaforo-indicator-box semaforo-amarillo hover-animate';
+        if (semTitulo) semTitulo.innerText = 'Amarillo - Precaución Presupuestaria';
+        if (semDetalle) semDetalle.innerText = `Presupuesto ejecutado: ${pctEjecutado.toFixed(1)}%. Modera tus gastos.`;
+        if (asesorMsg) {
+            asesorMsg.innerText = `¡Atención! Ya has consumido el ${pctEjecutado.toFixed(1)}% de tus ingresos. Cuida tus próximos gastos para no retrasar tu meta de ahorro (Saldo: Bs ${Math.max(saldoDisponible, 0).toFixed(2)}).`;
+        }
+    } else {
+        nivelSemaforo = 'rojo';
+        if (semBadge) { semBadge.className = 'semaforo-status-pill pill-alerta'; semBadge.innerText = 'ALERTA'; }
+        if (semBox) semBox.className = 'semaforo-indicator-box semaforo-rojo hover-animate';
+        if (semTitulo) semTitulo.innerText = 'Rojo - Alerta de Presupuesto';
+        if (semDetalle) semDetalle.innerText = `Presupuesto ejecutado: ${pctEjecutado.toFixed(1)}%. Límite superado (≥ 80%).`;
+        if (asesorMsg) {
+            asesorMsg.innerText = `¡Alerta crítica! Has consumido el ${pctEjecutado.toFixed(1)}% de tus fondos. Tu saldo disponible (Bs ${saldoDisponible.toFixed(2)}) compromete tu meta de ahorro personal.`;
+        }
+    }
+
+    // 2. Relación en vivo entre el Semáforo Financiero, el Saldo Disponible y la Meta de Ahorro Escolar
+    const activas = metasData?.activas || [];
+    const elMetaNombre = document.getElementById('home-meta-nombre');
+    const elMetaRel = document.getElementById('home-meta-semaforo-rel');
+    const elMetaBar = document.getElementById('home-meta-bar');
+    const elMetaTexto = document.getElementById('home-meta-progreso-texto');
+    const elMetaMontos = document.getElementById('home-meta-montos');
+
+    if (!elMetaNombre) return;
+
+    if (activas.length === 0) {
+        elMetaNombre.innerText = 'Sin meta personal activa';
+        if (elMetaRel) {
+            elMetaRel.innerText = `Saldo acumulable: Bs ${Math.max(saldoDisponible, 0).toFixed(2)}`;
+        }
+        if (elMetaBar) elMetaBar.style.width = '0%';
+        if (elMetaTexto) {
+            elMetaTexto.innerText = 'Haz clic en "Nueva Meta" o "Configurar Meta" para definir qué quieres comprarte.';
+        }
+        if (elMetaMontos) elMetaMontos.innerText = `Bs ${Math.max(saldoDisponible, 0).toFixed(2)} / Bs 0.00`;
+        return;
+    }
+
+    // Tomamos la meta activa principal para mostrar su progreso en el Resumen de Inicio
+    const metaPrincipal = activas[0];
+    const objetivo = parseFloat(metaPrincipal.monto_objetivo) || 1;
+    const abonoManual = parseFloat(metaPrincipal.monto_ahorrado) || 0;
+    // Según la lógica del negocio del modelo: si la meta no tiene abono aislado o si se respalda con el saldo disponible,
+    // el monto alcanzado refleja el ahorro efectivo (saldo disponible acumulable o abonos realizados)
+    const montoAlcanzado = abonoManual > 0
+        ? Math.min(Math.max(abonoManual, 0), objetivo)
+        : Math.min(Math.max(saldoDisponible, 0), objetivo);
+
+    const pctMeta = Math.min((montoAlcanzado / objetivo) * 100, 100);
+    const faltanteMeta = Math.max(objetivo - montoAlcanzado, 0);
+
+    elMetaNombre.innerText = metaPrincipal.titulo;
+    if (elMetaBar) {
+        elMetaBar.style.width = `${pctMeta.toFixed(1)}%`;
+        elMetaBar.style.background = nivelSemaforo === 'rojo'
+            ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
+            : (pctMeta >= 100
+                ? 'linear-gradient(90deg, #059669, #10b981)'
+                : 'linear-gradient(90deg, #0284c7 0%, #2563eb 60%, #3b82f6 100%)');
+    }
+
+    if (elMetaRel) {
+        if (pctMeta >= 100) {
+            elMetaRel.innerText = '🎉 ¡Meta completada! Puedes borrarla en el menú Metas';
+        } else if (nivelSemaforo === 'verde') {
+            elMetaRel.innerText = '🟢 Semáforo Óptimo: Tu ahorro avanza sin riesgo';
+        } else if (nivelSemaforo === 'amarillo') {
+            elMetaRel.innerText = '🟡 Semáforo en Precaución: Tus gastos frenan tu meta';
+        } else {
+            elMetaRel.innerText = '🔴 Semáforo en Alerta: Gastos reducen tu meta';
+        }
+    }
+
+    if (elMetaTexto) {
+        if (pctMeta >= 100) {
+            elMetaTexto.innerText = `Progreso: 100% alcanzado. ¡Felicidades! Ya completaste tu meta para "${metaPrincipal.titulo}".`;
+        } else {
+            elMetaTexto.innerText = `Progreso: ${pctMeta.toFixed(1)}% alcanzado. Te falta Bs ${faltanteMeta.toFixed(2)} para llegar a tu meta.`;
+        }
+    }
+
+    if (elMetaMontos) {
+        elMetaMontos.innerText = `Bs ${montoAlcanzado.toFixed(2)} / Bs ${objetivo.toFixed(2)}`;
     }
 }
 
@@ -545,6 +688,16 @@ async function loadMetas() {
             badge.innerText = `${data.resumen.metasCompletadas} de ${data.resumen.totalMetas} completadas`;
         }
 
+        // Actualizamos el cuadro de resumen superior de la pestaña de Metas
+        if (data.resumen) {
+            const elActivas = document.getElementById('metas-tab-activas-count');
+            const elCompletadas = document.getElementById('metas-tab-completadas-count');
+            const elTotalAhorrado = document.getElementById('metas-tab-total-ahorrado');
+            if (elActivas) elActivas.innerText = data.resumen.metasActivas;
+            if (elCompletadas) elCompletadas.innerText = `${data.resumen.metasCompletadas} / ${data.resumen.totalMetas}`;
+            if (elTotalAhorrado) elTotalAhorrado.innerText = `Bs. ${(data.resumen.totalAhorradoActivo || 0).toFixed(2)}`;
+        }
+
         // 1. Renderizar Metas Activas en el Panel del Estudiante
         if (!data.activas || data.activas.length === 0) {
             contActivas.innerHTML = `
@@ -556,28 +709,31 @@ async function loadMetas() {
             `;
         } else {
             contActivas.innerHTML = data.activas.map(m => {
-                const objetivo = parseFloat(m.monto_objetivo);
-                const ahorrado = parseFloat(m.monto_ahorrado);
-                const pct = objetivo > 0 ? Math.min((ahorrado / objetivo) * 100, 100) : 0;
-                const faltante = Math.max(objetivo - ahorrado, 0);
-                const completada = m.estado === 'completada' || ahorrado >= objetivo;
+                const objetivo = parseFloat(m.monto_objetivo) || 1;
+                const abonoManual = parseFloat(m.monto_ahorrado) || 0;
+                const ahorradoEfectivo = abonoManual > 0
+                    ? abonoManual
+                    : Math.min(Math.max(saldoGlobalDisponible, 0), objetivo);
+                const pct = objetivo > 0 ? Math.min((ahorradoEfectivo / objetivo) * 100, 100) : 0;
+                const faltante = Math.max(objetivo - ahorradoEfectivo, 0);
+                const completada = m.estado === 'completada' || ahorradoEfectivo >= objetivo;
                 const icono = ICONOS_META[m.categoria] || 'fa-bullseye';
 
                 return `
-                    <div class="meta-card ${completada ? 'meta-completada' : ''}">
+                    <div class="meta-card hover-animate ${completada ? 'meta-completada' : ''}">
                         <div class="meta-card-top">
                             <div class="meta-title-group">
                                 <strong><i class="fas ${icono}"></i> ${escapeHtml(m.titulo)}</strong>
                                 <span class="meta-cat-badge">${escapeHtml(m.categoria || 'Personal')}</span>
                             </div>
                             <span class="meta-status-pill ${completada ? 'completada' : 'progreso'}">
-                                ${completada ? '🎉 ¡Completada!' : `${pct.toFixed(0)}% ahorrado`}
+                                ${completada ? '🎉 ¡Completada!' : `${pct.toFixed(1)}% alcanzado`}
                             </span>
                         </div>
 
                         <div class="meta-amounts-row">
-                            <span>Puesto: <strong>Bs. ${ahorrado.toFixed(2)}</strong> de <strong>Bs. ${objetivo.toFixed(2)}</strong></span>
-                            <span>${completada ? '¡Listo para comprar!' : `Faltan: Bs. ${faltante.toFixed(2)}`}</span>
+                            <span>Progreso: <strong>Bs. ${ahorradoEfectivo.toFixed(2)}</strong> de <strong>Bs. ${objetivo.toFixed(2)}</strong></span>
+                            <span>${completada ? '¡Listo para comprar!' : `Te falta Bs. ${faltante.toFixed(2)}`}</span>
                         </div>
 
                         <div class="meta-progress-track">
